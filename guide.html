@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Manjula.xyz Deployment Guide</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230E1726'/%3E%3Cpath d='M16 20l12 12-12 12' fill='none' stroke='%23F5A524' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M32 45h16' stroke='%23F5A524' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#0E1726">
 <meta name="description" content="Step-by-step production deployment of Next.js, React and Laravel on one AWS Lightsail Ubuntu server behind Nginx and Cloudflare.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -125,7 +127,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .btn.icon { width: 36px; padding: 0; justify-content: center; }
 .btn svg { width: 16px; height: 16px; }
 .kbd { font: 600 11px/1 'JetBrains Mono', monospace; padding: 3px 6px; border: 1px solid var(--border); border-radius: 5px; color: var(--faint); }
-.menu-btn { display: none; }
 .progress-bar { position: absolute; left: 0; bottom: -1px; height: 3px; background: var(--accent); width: 0; transition: width .3s ease; }
 
 /* ---------- layout ---------- */
@@ -135,11 +136,17 @@ button { font: inherit; color: inherit; cursor: pointer; }
   border-right: 1px solid var(--border);
   padding: 20px 14px 40px;
 }
+.sidebar-head { display: flex; gap: 8px; margin-bottom: 18px; }
+.sidebar-head .btn.icon { flex: none; height: 38px; width: 38px; border-radius: 10px; }
 .search {
-  width: 100%; height: 38px; padding: 0 12px;
+  flex: 1; min-width: 0; height: 38px; padding: 0 12px;
   border: 1px solid var(--border); border-radius: 10px;
   background: var(--surface); color: var(--text); font: inherit; font-size: 14px;
-  margin-bottom: 18px;
+}
+.layout { transition: grid-template-columns .2s ease; }
+@media (min-width: 961px) {
+  body.sidebar-collapsed .layout { grid-template-columns: 0 minmax(0, 1fr); }
+  body.sidebar-collapsed .sidebar { visibility: hidden; padding: 0; border: 0; overflow: hidden; }
 }
 .nav-group { margin-bottom: 18px; }
 .nav-part { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding: 0 8px; font: 600 11px/1.4 'JetBrains Mono', monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
@@ -162,7 +169,9 @@ main { padding: 40px clamp(16px, 5vw, 72px) 140px; min-width: 0; }
 /* ---------- hero ---------- */
 .hero { padding: 16px 0 24px; }
 .eyebrow { margin: 0 0 14px; font: 600 12px/1.4 'JetBrains Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
-.hero h1 { font-size: clamp(2.3rem, 5.5vw, 3.8rem); font-weight: 700; letter-spacing: -0.02em; max-width: 14ch; }
+.hero-title { font-size: clamp(2.8rem, 7.5vw, 5.4rem); font-weight: 700; line-height: 1.02; letter-spacing: -0.03em; margin-bottom: 32px; }
+.hero-title-tail { display: block; margin-top: 12px; font-size: 0.5em; letter-spacing: -0.01em; color: var(--accent); }
+.hero-sub { font-size: clamp(1.7rem, 3.8vw, 2.6rem); font-weight: 700; letter-spacing: -0.02em; color: var(--muted); }
 .lede { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 20px 0 32px; }
 .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
 .app-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow); }
@@ -230,6 +239,8 @@ code:not(pre code) { font-size: .88em; background: var(--surface-2); border: 1px
 .code.plain.danger { background: var(--danger-bg); }
 
 .var { border-radius: 4px; padding: 0 3px; background: rgba(245, 165, 36, 0.18); color: #F7C66B; outline: 1px dashed rgba(245, 165, 36, 0.7); }
+.dom.filled { border-radius: 4px; padding: 0 2px; background: rgba(45, 212, 191, 0.15); color: #7EE8D8; }
+.code.plain .dom.filled, code:not(pre code) .dom.filled, .step-body p > .dom.filled, .step-body li > .dom.filled, td > .dom.filled { color: var(--ok); }
 .var.filled { outline: none; background: rgba(45, 212, 191, 0.15); color: #7EE8D8; }
 .code.plain .var, code:not(pre code) .var { color: var(--accent); }
 .code.plain .var.filled, code:not(pre code) .var.filled { color: var(--ok); }
@@ -258,6 +269,31 @@ tr:last-child td { border-bottom: 0; }
 .done-toggle { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px; font-size: 14px; color: var(--muted); cursor: pointer; background: var(--surface); }
 .done-toggle input { accent-color: var(--ok); width: 16px; height: 16px; margin: 0; }
 .done-toggle:has(input:checked) { border-color: var(--ok); color: var(--ok); }
+
+/* ---------- title slide (present mode only) ---------- */
+.title-slide { display: none; }
+body.present .title-slide.current {
+  display: flex; flex-direction: column; justify-content: center;
+  position: fixed; inset: 0; z-index: 1; overflow-y: auto;
+  padding: 64px clamp(16px, 7vw, 120px) 120px;
+  background: radial-gradient(circle at 85% 15%, #3A2E1E 0%, #0E1726 60%);
+  color: #F5F3EE;
+}
+.title-slide .eyebrow { color: #F5A524; font-size: 14px; margin-bottom: 24px; }
+.title-slide h1 { font-size: clamp(3rem, 8vw, 6.5rem); font-weight: 700; line-height: 1.02; letter-spacing: -0.03em; color: #F5F3EE; }
+.title-slide .ts-sub { margin: 28px 0 0; max-width: 46ch; font-size: clamp(1.1rem, 2vw, 1.5rem); line-height: 1.5; color: #B8C4D6; }
+.ts-author { margin-top: 56px; padding-left: 18px; border-left: 3px solid #F5A524; }
+.ts-author p { margin: 0; }
+.ts-name { font: 700 clamp(1.1rem, 1.8vw, 1.4rem)/1.3 'Space Grotesk', Arial, sans-serif; color: #F5F3EE; }
+.ts-role { margin-top: 4px !important; font-size: 1rem; color: #B8C4D6; }
+.ts-hint { margin: 48px 0 0; font: 500 13px/1 'JetBrains Mono', monospace; color: #8A94A6; }
+
+/* ---------- author ---------- */
+.author { margin: 64px 0 0; padding: 28px 0 0; border-top: 3px solid var(--accent); }
+.author p { margin: 0; }
+.author-name { font: 700 1.25rem/1.3 'Space Grotesk', Arial, sans-serif; color: var(--text); }
+.author-role { margin-top: 4px !important; font-size: 15px; color: var(--muted); }
+body.present .author { display: none; }
 
 /* ---------- values panel ---------- */
 .panel {
@@ -302,7 +338,6 @@ body.present .present-bar {
 /* ---------- responsive ---------- */
 @media (max-width: 960px) {
   .layout { grid-template-columns: 1fr; }
-  .menu-btn { display: inline-flex; }
   .sidebar {
     position: fixed; top: 60px; left: 0; z-index: 25;
     width: min(320px, 86vw); background: var(--bg);
@@ -328,10 +363,10 @@ body.present .present-bar {
 <body>
 
 <header class="topbar">
-  <button class="btn icon menu-btn" type="button" data-action="menu" aria-label="Open steps">
+  <button class="btn icon menu-btn" type="button" data-action="menu" aria-label="Show or hide steps" title="Show or hide steps  [">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
   </button>
-  <a class="brand" href="#top"><span class="brand-mark">&gt;_</span><span class="brand-text">manjula.xyz deploy</span></a>
+  <a class="brand" href="#top"><span class="brand-mark">&gt;_</span><span class="brand-text"><span class="dom">manjula.xyz</span> deploy</span></a>
   <span class="spacer"></span>
   <span class="progress-text" id="progress-text">0 / 80 done</span>
   <button class="btn" type="button" data-action="vars">
@@ -350,7 +385,12 @@ body.present .present-bar {
 
 <div class="layout">
   <nav class="sidebar" aria-label="Steps">
-    <input class="search" id="search" type="search" placeholder="Search steps…  (/)" aria-label="Search steps">
+    <div class="sidebar-head">
+      <input class="search" id="search" type="search" placeholder="Search steps…  (/)" aria-label="Search steps">
+      <button class="btn icon" type="button" data-action="collapse" aria-label="Collapse sidebar" title="Collapse sidebar  [">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M16 10l-2 2 2 2"/></svg>
+      </button>
+    </div>
     <div id="nav"></div>
     <p class="no-results" id="no-results" hidden>No steps match.</p>
   </nav>
@@ -366,7 +406,7 @@ body.present .present-bar {
   </div>
   <p>Fill these in and every command on the page updates, ready to copy.</p>
   <div id="vars-fields"></div>
-  <p class="hint">Values stay in this browser only. The password is never saved.</p>
+  <p class="hint">The domain also updates every subdomain (www., app., api.) across the page. Values stay in this browser only; the password is never saved.</p>
 </div>
 
 <div class="present-bar" role="toolbar" aria-label="Presenter controls">
@@ -795,6 +835,9 @@ dig manjula.xyz
 dig app.manjula.xyz
 dig api.manjula.xyz
 ```
+
+- `nslookup` = quick DNS lookup
+- `dig` = detailed DNS investigation
 
 If `dig` is unavailable:
 
@@ -1671,7 +1714,7 @@ CTRL+C
 ```bash
 pm2 start npm \
     --name manjula-landing \
-    -- start
+    -- start -- -p 3000
 ```
 
 Check:
@@ -3076,6 +3119,9 @@ without requiring a separate VPS for every application.
 
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const varify = h => h.replace(/\bYOUR_[A-Z_]+\b/g, m => `<span class="var" data-var="${m}">${m}</span>`);
+  const DEFAULT_DOMAIN = 'manjula.xyz';
+  const domainify = h => h.replace(/manjula\.xyz/gi, '<span class="dom">manjula.xyz</span>');
+  const cleanDomain = v => v.trim().toLowerCase().replace(/^[a-z]+:\/\//, '').replace(/[\/?#].*$/, '').replace(/^www\./, '').replace(/\.$/, '');
 
   const CHAPTERS = [
     { from: 1,  to: 2,  name: 'Overview',              desc: 'The target architecture and the domain plan.' },
@@ -3092,13 +3138,14 @@ without requiring a separate VPS for every application.
 
   const NOTES = {
     28: 'Step 29 runs <code>php artisan optimize</code> as <code>ubuntu</code>, which is not in the <code>www-data</code> group, so it cannot write to <code>bootstrap/cache</code> once that belongs to <code>www-data:www-data</code>. Run <code>sudo usermod -aG www-data ubuntu</code> (then reconnect) and give the writable folders <code>ubuntu:www-data</code> ownership with mode 775.',
-    39: '<code>next start</code> listens on <code>0.0.0.0</code> by default. To keep it on localhost, as step 63 recommends, start it with <code>pm2 start npm --name manjula-landing -- start -- -H 127.0.0.1</code>.',
+    39: '<code>next start</code> listens on <code>0.0.0.0</code> by default. To keep it on localhost, as step 63 recommends, start it with <code>pm2 start npm --name manjula-landing -- start -- -p 3000 -H 127.0.0.1</code>.',
     44: 'For a smooth demo, switch to Full (strict) <strong>after</strong> the certificates exist (steps 46–49). Until then Nginx has nothing listening on 443, and visitors get a Cloudflare 52x error.',
     56: '<code>sudo crontab -e</code> edits root’s crontab, so the scheduler runs as root and can create root-owned files in <code>storage/logs</code> that PHP-FPM then cannot write. Use <code>sudo crontab -u www-data -e</code> instead.',
     58: 'Behind Cloudflare, Nginx and Laravel see Cloudflare’s IPs instead of visitors’. Add <code>set_real_ip_from</code> lines for Cloudflare’s published IP ranges plus <code>real_ip_header CF-Connecting-IP;</code> in Nginx, and configure Laravel’s trusted proxies, so logs and rate limits see real addresses.'
   };
 
   const VARS = [
+    { key: 'DOMAIN',                  label: 'Domain name',        ph: 'manjula.xyz' },
     { key: 'YOUR_SERVER_IP',          label: 'Server static IP',   ph: 'e.g. 13.250.12.34' },
     { key: 'YOUR_STRONG_PASSWORD',    label: 'MySQL password',     ph: 'not saved', secret: true },
     { key: 'YOUR_LARAVEL_REPOSITORY', label: 'Laravel repo URL',   ph: 'git@github.com:you/backend.git' },
@@ -3113,12 +3160,12 @@ without requiring a separate VPS for every application.
     let h = esc(s);
     h = h.replace(/`([^`]+)`/g, (_, c) => `<code>${varify(c)}</code>`);
     h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    return h;
+    return domainify(h);
   }
 
   function codeBlock(text, lang, danger) {
     const isText = !lang || lang === 'text';
-    const body = `<pre><code>${varify(esc(text))}</code></pre>`;
+    const body = `<pre><code>${domainify(varify(esc(text)))}</code></pre>`;
     if (isText && !danger) return `<div class="code plain">${body}</div>`;
     const label = danger ? 'Avoid' : (LANGS[lang] || lang);
     const copy = danger ? '' : '<button class="copy" type="button">Copy</button>';
@@ -3215,18 +3262,29 @@ without requiring a separate VPS for every application.
 
   const title = ((intro.find(l => /^# /.test(l)) || '# Deployment Guide').slice(2)).replace(/ Production Deployment Guide$/, '');
   const subtitle = (intro.find(l => /^## /.test(l)) || '').slice(3);
-  const desc = intro.find(l => /^This guide/.test(l)) || '';
+  const desc = (intro.find(l => /^This guide/.test(l)) || '').replace(/:$/, '.');
   const appRows = intro.filter(l => /^\|/.test(l)).slice(2).map(r => r.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()));
   const chips = intro.filter(l => /^- /.test(l)).map(l => l.slice(2));
 
   /* ---------- build the page ---------- */
   let html = `
+  <section class="title-slide" id="title-slide" aria-label="Title slide">
+    <p class="eyebrow">Practical demo · <span class="dom">manjula.xyz</span></p>
+    <h1>From Localhost<br>to Production</h1>
+    <p class="ts-sub">Next.js, React and Laravel on one AWS Lightsail server, behind Nginx and Cloudflare</p>
+    <div class="ts-author">
+      <p class="ts-name">By Manjula Wijayasingha</p>
+      <p class="ts-role">Engineer - Software Division</p>
+    </div>
+    <p class="ts-hint">Press → to begin</p>
+  </section>
   <section class="hero" id="top">
+    <h1 class="hero-title">From Localhost<br>to Production <span class="hero-title-tail">using AWS Lightsail</span></h1>
     <p class="eyebrow">Production deployment guide</p>
-    <h1>${esc(title)} in production</h1>
+    <h2 class="hero-sub">${domainify(esc(title))} in production</h2>
     <p class="lede">${inline(desc)}</p>
     <div class="apps">${appRows.map(r => `
-      <div class="app-card"><div class="domain">${esc(r[1].replace(/`/g, ''))}</div><h3>${esc(r[0])}</h3><p>${esc(r[2])}</p></div>`).join('')}
+      <div class="app-card"><div class="domain">${domainify(esc(r[1].replace(/`/g, '')))}</div><h3>${esc(r[0])}</h3><p>${esc(r[2])}</p></div>`).join('')}
     </div>
     <div class="flow" role="img" aria-label="Request flow: Browser to Cloudflare to Nginx, which routes to Next.js, React or Laravel">
       <div class="node">Browser<small>visitors</small></div><div class="arrow"></div>
@@ -3255,7 +3313,7 @@ without requiring a separate VPS for every application.
     <div class="chapter" id="part-${ci + 1}">
       <p class="eyebrow">Part ${ci + 1}</p>
       <h2>${esc(ch.name)}</h2>
-      <p>${esc(ch.desc)}</p>
+      <p>${domainify(esc(ch.desc))}</p>
       <span class="range">Steps ${ch.from}–${ch.to}</span>
     </div>`;
     nav += `<div class="nav-group" data-part="${ci + 1}"><p class="nav-part">${ci + 1} · ${esc(ch.name)}</p>`;
@@ -3268,10 +3326,16 @@ without requiring a separate VPS for every application.
       <div class="step-body">${renderBlocks(s.lines, s.n)}${note}</div>
       <footer class="step-foot"><label class="done-toggle"><input type="checkbox" data-done="${s.n}"><span>Mark step done</span></label></footer>
     </section>`;
-      nav += `<a class="nav-link" href="#step-${s.n}" data-n="${s.n}"><span class="n">${s.n}</span><span class="t">${esc(s.title)}</span><span class="tick" aria-hidden="true"></span></a>`;
+      nav += `<a class="nav-link" href="#step-${s.n}" data-n="${s.n}"><span class="n">${s.n}</span><span class="t">${domainify(esc(s.title))}</span><span class="tick" aria-hidden="true"></span></a>`;
     });
     nav += '</div>';
   });
+
+  html += `
+  <footer class="author">
+    <p class="author-name">By Manjula Wijayasingha</p>
+    <p class="author-role">Engineer - Software Division</p>
+  </footer>`;
 
   document.getElementById('content').innerHTML = html;
   document.getElementById('nav').innerHTML = nav;
@@ -3293,7 +3357,7 @@ without requiring a separate VPS for every application.
     });
     document.getElementById('progress-text').textContent = `${done.size} / ${stepEls.length} done`;
     document.getElementById('progress-bar').style.width = (done.size / stepEls.length * 100) + '%';
-    const cur = stepEls[presentIdx];
+    const cur = document.body.classList.contains('present') ? stepEls[presentIdx - 1] : null;
     if (cur) document.getElementById('present-done').textContent = done.has(cur.dataset.n) ? 'Done ✓' : 'Mark done';
   }
   function setDone(n, on) {
@@ -3325,6 +3389,12 @@ without requiring a separate VPS for every application.
   fields.querySelectorAll('input').forEach(inp => { inp.value = values[inp.dataset.varInput] || ''; });
 
   function renderVars() {
+    const dom = values.DOMAIN || DEFAULT_DOMAIN;
+    document.querySelectorAll('.dom').forEach(s => {
+      s.textContent = dom;
+      s.classList.toggle('filled', !!values.DOMAIN && !s.closest('.brand, h1, h2, .nav-link, .app-card, .chapter, .title-slide'));
+    });
+    document.title = (values.DOMAIN ? dom : 'Manjula.xyz') + ' Deployment Guide';
     document.querySelectorAll('.var').forEach(s => {
       const v = values[s.dataset.var];
       s.textContent = v || s.dataset.var;
@@ -3334,7 +3404,7 @@ without requiring a separate VPS for every application.
   fields.addEventListener('input', e => {
     const k = e.target.dataset.varInput;
     if (!k) return;
-    values[k] = e.target.value.trim();
+    values[k] = k === 'DOMAIN' ? cleanDomain(e.target.value) : e.target.value.trim();
     const toSave = {};
     VARS.forEach(v => { if (!v.secret && values[v.key]) toSave[v.key] = values[v.key]; });
     store.set('mxg-vars', toSave);
@@ -3393,7 +3463,8 @@ without requiring a separate VPS for every application.
       let shown = 0;
       g.querySelectorAll('.nav-link').forEach(a => {
         const s = steps.find(x => String(x.n) === a.dataset.n);
-        const hit = !q || s.search.includes(q);
+        const text = values.DOMAIN ? s.search.split(DEFAULT_DOMAIN).join(values.DOMAIN) : s.search;
+        const hit = !q || text.includes(q);
         a.hidden = !hit;
         if (hit) shown++;
       });
@@ -3404,20 +3475,24 @@ without requiring a separate VPS for every application.
   });
 
   /* ---------- presenter mode ---------- */
+  // Slide 0 is the title slide; slides 1…80 are the steps.
+  const titleSlide = document.getElementById('title-slide');
+  const slides = [titleSlide, ...stepEls];
   let presentIdx = 0;
   function showStep(i) {
-    presentIdx = Math.max(0, Math.min(stepEls.length - 1, i));
-    stepEls.forEach((el, k) => el.classList.toggle('current', k === presentIdx));
-    const el = stepEls[presentIdx];
-    const s = steps[presentIdx];
-    document.getElementById('present-count').textContent = `${presentIdx + 1} / ${stepEls.length}`;
-    document.getElementById('present-part').textContent = s.chapter.name;
+    presentIdx = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((el, k) => el.classList.toggle('current', k === presentIdx));
+    const el = slides[presentIdx];
+    const isTitle = el === titleSlide;
+    document.getElementById('present-count').textContent = isTitle ? 'Title' : `${presentIdx} / ${stepEls.length}`;
+    document.getElementById('present-part').textContent = isTitle ? '' : steps[presentIdx - 1].chapter.name;
+    document.getElementById('present-done').hidden = isTitle;
     renderProgress();
     window.scrollTo(0, 0);
-    try { history.replaceState(null, '', '#step-' + el.dataset.n); } catch (e) {}
+    try { history.replaceState(null, '', isTitle ? location.pathname + location.search : '#step-' + el.dataset.n); } catch (e) {}
   }
   function enterPresent() {
-    const start = activeN ? stepEls.findIndex(el => el.dataset.n === activeN) : 0;
+    const start = activeN ? slides.findIndex(el => el.dataset.n === activeN) : 0;
     document.body.classList.remove('nav-open');
     document.getElementById('vars-panel').hidden = true;
     document.body.classList.add('present');
@@ -3425,9 +3500,26 @@ without requiring a separate VPS for every application.
   }
   function exitPresent() {
     document.body.classList.remove('present');
-    stepEls.forEach(el => el.classList.remove('current'));
-    stepEls[presentIdx].scrollIntoView({ block: 'start', behavior: 'instant' });
+    slides.forEach(el => el.classList.remove('current'));
+    if (slides[presentIdx] === titleSlide) window.scrollTo(0, 0);
+    else slides[presentIdx].scrollIntoView({ block: 'start', behavior: 'instant' });
   }
+  function toggleCurrentDone() {
+    const el = slides[presentIdx];
+    if (el && el !== titleSlide) setDone(el.dataset.n, !done.has(el.dataset.n));
+  }
+
+  /* ---------- sidebar collapse ---------- */
+  const isMobile = () => matchMedia('(max-width: 960px)').matches;
+  function setCollapsed(on) {
+    document.body.classList.toggle('sidebar-collapsed', on);
+    store.set('mxg-sidebar-collapsed', on);
+  }
+  function toggleSidebar() {
+    if (isMobile()) document.body.classList.toggle('nav-open');
+    else setCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+  }
+  if (store.get('mxg-sidebar-collapsed', false)) document.body.classList.add('sidebar-collapsed');
 
   /* ---------- clicks ---------- */
   document.addEventListener('click', e => {
@@ -3447,9 +3539,10 @@ without requiring a separate VPS for every application.
       else if (a === 'exit') exitPresent();
       else if (a === 'next') showStep(presentIdx + 1);
       else if (a === 'prev') showStep(presentIdx - 1);
-      else if (a === 'toggle-done') { const n = stepEls[presentIdx].dataset.n; setDone(n, !done.has(n)); }
+      else if (a === 'toggle-done') toggleCurrentDone();
       else if (a === 'theme') toggleTheme();
-      else if (a === 'menu') document.body.classList.toggle('nav-open');
+      else if (a === 'menu') toggleSidebar();
+      else if (a === 'collapse') { if (isMobile()) document.body.classList.remove('nav-open'); else setCollapsed(true); }
       else if (a === 'vars') {
         const p = document.getElementById('vars-panel');
         p.hidden = !p.hidden;
@@ -3476,13 +3569,18 @@ without requiring a separate VPS for every application.
       if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); showStep(presentIdx + 1); }
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); showStep(presentIdx - 1); }
       else if (e.key === 'Home') { e.preventDefault(); showStep(0); }
-      else if (e.key === 'End') { e.preventDefault(); showStep(stepEls.length - 1); }
-      else if (e.key === 'd' || e.key === 'D') { const n = stepEls[presentIdx].dataset.n; setDone(n, !done.has(n)); }
+      else if (e.key === 'End') { e.preventDefault(); showStep(slides.length - 1); }
+      else if (e.key === 'd' || e.key === 'D') toggleCurrentDone();
       else if (e.key === 'p' || e.key === 'P') exitPresent();
       return;
     }
     if (e.key === 'p' || e.key === 'P') enterPresent();
-    else if (e.key === '/') { e.preventDefault(); search.focus(); }
+    else if (e.key === '[') toggleSidebar();
+    else if (e.key === '/') {
+      e.preventDefault();
+      if (isMobile()) document.body.classList.add('nav-open'); else setCollapsed(false);
+      search.focus();
+    }
   });
 
   renderProgress();
