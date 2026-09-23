@@ -1,0 +1,3497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manjula.xyz Deployment Guide</title>
+<meta name="description" content="Step-by-step production deployment of Next.js, React and Laravel on one AWS Lightsail Ubuntu server behind Nginx and Cloudflare.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+:root {
+  --bg: #F5F3EE;
+  --surface: #FCFBF8;
+  --surface-2: #EFEBE3;
+  --border: #E2DED4;
+  --text: #0E1726;
+  --muted: #475467;
+  --faint: #5B6472;
+  --accent: #B45309;
+  --accent-soft: rgba(180, 83, 9, 0.10);
+  --accent-border: #F0C9A0;
+  --note-bg: #FFF6E8;
+  --danger: #B42318;
+  --danger-bg: #FDEDEA;
+  --ok: #0F766E;
+  --code-bg: #0E1726;
+  --code-border: #1E2A40;
+  --code-text: #D7E3F4;
+  --code-muted: #8A94A6;
+  --hero-panel: #0E1726;
+  --hero-text: #F5F3EE;
+  --shadow: 0 1px 2px rgba(14, 23, 38, 0.06), 0 8px 24px rgba(14, 23, 38, 0.06);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B1220;
+    --surface: #111B2E;
+    --surface-2: #17233A;
+    --border: #26354F;
+    --text: #EEF1F6;
+    --muted: #B8C4D6;
+    --faint: #8A94A6;
+    --accent: #F5A524;
+    --accent-soft: rgba(245, 165, 36, 0.12);
+    --accent-border: #6B4E1C;
+    --note-bg: #1F1B14;
+    --danger: #F97066;
+    --danger-bg: #2A1418;
+    --ok: #2DD4BF;
+    --code-bg: #070D18;
+    --code-border: #1E2A40;
+    --code-text: #D7E3F4;
+    --code-muted: #8A94A6;
+    --hero-panel: #111B2E;
+    --hero-text: #EEF1F6;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B1220;
+  --surface: #111B2E;
+  --surface-2: #17233A;
+  --border: #26354F;
+  --text: #EEF1F6;
+  --muted: #B8C4D6;
+  --faint: #8A94A6;
+  --accent: #F5A524;
+  --accent-soft: rgba(245, 165, 36, 0.12);
+  --accent-border: #6B4E1C;
+  --note-bg: #1F1B14;
+  --danger: #F97066;
+  --danger-bg: #2A1418;
+  --ok: #2DD4BF;
+  --code-bg: #070D18;
+  --code-border: #1E2A40;
+  --code-text: #D7E3F4;
+  --code-muted: #8A94A6;
+  --hero-panel: #111B2E;
+  --hero-text: #EEF1F6;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+h1, h2, h3, h4 { font-family: 'Space Grotesk', 'IBM Plex Sans', Arial, sans-serif; line-height: 1.15; margin: 0; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.mono, code, pre { font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, Menlo, monospace; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+/* ---------- top bar ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 30;
+  height: 60px; display: flex; align-items: center; gap: 12px;
+  padding: 0 20px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: 'Space Grotesk', Arial, sans-serif; font-weight: 700; font-size: 17px; white-space: nowrap; }
+.brand-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--code-bg); display: grid; place-items: center; color: #F5A524; font: 700 14px/1 'JetBrains Mono', monospace; }
+.topbar .spacer { flex: 1; }
+.progress-text { font: 500 13px/1 'JetBrains Mono', monospace; color: var(--faint); white-space: nowrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 14px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface); color: var(--text);
+  font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #FFF8EC; }
+:root[data-theme="dark"] .btn.primary { color: #0E1726; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #0E1726; } }
+.btn.icon { width: 36px; padding: 0; justify-content: center; }
+.btn svg { width: 16px; height: 16px; }
+.kbd { font: 600 11px/1 'JetBrains Mono', monospace; padding: 3px 6px; border: 1px solid var(--border); border-radius: 5px; color: var(--faint); }
+.menu-btn { display: none; }
+.progress-bar { position: absolute; left: 0; bottom: -1px; height: 3px; background: var(--accent); width: 0; transition: width .3s ease; }
+
+/* ---------- layout ---------- */
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); }
+.sidebar {
+  position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto;
+  border-right: 1px solid var(--border);
+  padding: 20px 14px 40px;
+}
+.search {
+  width: 100%; height: 38px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); color: var(--text); font: inherit; font-size: 14px;
+  margin-bottom: 18px;
+}
+.nav-group { margin-bottom: 18px; }
+.nav-part { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding: 0 8px; font: 600 11px/1.4 'JetBrains Mono', monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.nav-link {
+  display: grid; grid-template-columns: 28px 1fr 16px; align-items: baseline; gap: 4px;
+  padding: 5px 8px; border-radius: 8px;
+  font-size: 14px; line-height: 1.4; color: var(--muted); text-decoration: none;
+}
+.nav-link:hover { background: var(--surface-2); color: var(--text); }
+.nav-link.active { background: var(--accent-soft); color: var(--text); font-weight: 500; }
+.nav-link .n { font: 12px/1.4 'JetBrains Mono', monospace; color: var(--faint); }
+.nav-link .tick { color: var(--ok); font-weight: 700; font-size: 13px; }
+.nav-link.done .tick::before { content: "✓"; }
+.nav-link[hidden], .nav-group[hidden] { display: none; }
+.no-results { font-size: 14px; color: var(--faint); padding: 0 8px; }
+
+main { padding: 40px clamp(16px, 5vw, 72px) 140px; min-width: 0; }
+.content { max-width: 900px; margin: 0 auto; }
+
+/* ---------- hero ---------- */
+.hero { padding: 16px 0 24px; }
+.eyebrow { margin: 0 0 14px; font: 600 12px/1.4 'JetBrains Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.hero h1 { font-size: clamp(2.3rem, 5.5vw, 3.8rem); font-weight: 700; letter-spacing: -0.02em; max-width: 14ch; }
+.lede { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 20px 0 32px; }
+.apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+.app-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow); }
+.app-card .domain { font: 600 13px/1.4 'JetBrains Mono', monospace; color: var(--accent); }
+.app-card h3 { font-size: 1.25rem; margin: 6px 0 4px; }
+.app-card p { margin: 0; color: var(--muted); font-size: 14px; }
+
+.flow {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--hero-panel); color: var(--hero-text);
+  border-radius: 16px; padding: 22px; margin-bottom: 20px;
+  border: 1px solid var(--code-border);
+}
+.flow .node { background: rgba(255,255,255,0.05); border: 1px solid #2A3A56; border-radius: 10px; padding: 10px 14px; font: 600 15px/1.3 'Space Grotesk', Arial, sans-serif; white-space: nowrap; }
+.flow .node small { display: block; font: 400 12px/1.4 'JetBrains Mono', monospace; color: #8A94A6; margin-top: 2px; }
+.flow .node.hot { border-color: #F5A524; color: #F5A524; }
+.flow .arrow { flex: 1; min-width: 18px; height: 2px; background: #F5A524; position: relative; }
+.flow .arrow::after { content: ""; position: absolute; right: -1px; top: -4px; border: 5px solid transparent; border-left: 7px solid #F5A524; border-right: 0; }
+.flow .targets { display: flex; flex-direction: column; gap: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+.chip { font: 500 13px/1 'JetBrains Mono', monospace; padding: 8px 12px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.hero-meta { margin: 18px 0 0; font-size: 14px; color: var(--faint); }
+
+/* ---------- chapters ---------- */
+.chapter {
+  margin: 72px 0 8px; padding: 28px 32px;
+  border-radius: 18px; background: var(--hero-panel); color: var(--hero-text);
+  border: 1px solid var(--code-border);
+  scroll-margin-top: 80px;
+}
+.chapter .eyebrow { color: #F5A524; margin-bottom: 8px; }
+.chapter h2 { font-size: clamp(1.7rem, 3.5vw, 2.3rem); }
+.chapter p { margin: 8px 0 0; color: #B8C4D6; }
+.chapter .range { font: 12px/1 'JetBrains Mono', monospace; color: #8A94A6; margin-top: 14px; display: block; }
+
+/* ---------- steps ---------- */
+.step { padding: 44px 0 8px; border-bottom: 1px solid var(--border); scroll-margin-top: 64px; }
+.step-meta { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font: 500 13px/1 'JetBrains Mono', monospace; color: var(--faint); }
+.step-num { padding: 5px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.step.is-done .step-num { background: rgba(15, 118, 110, 0.12); color: var(--ok); }
+.step.is-done .step-num::after { content: " ✓"; }
+.step h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; letter-spacing: -0.01em; margin-bottom: 18px; }
+.step-body h3 { font-size: 1.25rem; margin: 30px 0 10px; }
+.step-body h4 { font-size: 1.05rem; margin: 24px 0 8px; color: var(--muted); }
+.step-body p { margin: 0 0 14px; }
+.step-body ul { margin: 0 0 16px; padding-left: 22px; }
+.step-body li { margin: 4px 0; }
+.label { margin: 22px 0 8px !important; font: 600 12px/1.4 'JetBrains Mono', monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.label.danger-label { color: var(--danger); }
+code:not(pre code) { font-size: .88em; background: var(--surface-2); border: 1px solid var(--border); padding: .08em .38em; border-radius: 6px; }
+
+.code { position: relative; margin: 0 0 16px; border-radius: 12px; overflow: hidden; background: var(--code-bg); border: 1px solid var(--code-border); }
+.code-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 8px 6px 14px; border-bottom: 1px solid var(--code-border); font: 600 11px/1 'JetBrains Mono', monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--code-muted); }
+.code pre { margin: 0; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.6; color: var(--code-text); tab-size: 4; }
+.copy { height: 26px; padding: 0 10px; border-radius: 6px; border: 1px solid #2A3A56; background: transparent; color: #D7E3F4; font: 600 11px/1 'JetBrains Mono', monospace; letter-spacing: .04em; }
+.copy:hover { border-color: #F5A524; color: #F5A524; }
+.copy.copied { border-color: #2DD4BF; color: #2DD4BF; }
+.code.plain { background: var(--surface-2); border-color: var(--border); }
+.code.plain pre { color: var(--text); font-size: 13.5px; }
+.code.plain .code-head { border-color: var(--border); color: var(--faint); }
+.code.danger { border-color: var(--danger); }
+.code.danger .code-head { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
+.code.danger pre { opacity: .8; }
+.code.plain.danger { background: var(--danger-bg); }
+
+.var { border-radius: 4px; padding: 0 3px; background: rgba(245, 165, 36, 0.18); color: #F7C66B; outline: 1px dashed rgba(245, 165, 36, 0.7); }
+.var.filled { outline: none; background: rgba(45, 212, 191, 0.15); color: #7EE8D8; }
+.code.plain .var, code:not(pre code) .var { color: var(--accent); }
+.code.plain .var.filled, code:not(pre code) .var.filled { color: var(--ok); }
+
+.callout { padding: 12px 16px; border-radius: 10px; border-left: 4px solid; margin: 0 0 16px !important; }
+.callout.warn { border-color: var(--danger); background: var(--danger-bg); }
+.callout.key { border-color: var(--accent); background: var(--note-bg); font-size: 1.05rem; }
+
+.table-wrap { overflow-x: auto; margin: 0 0 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: var(--surface-2); font: 600 12px/1.4 'JetBrains Mono', monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+tr:last-child td { border-bottom: 0; }
+
+.checklist { list-style: none; padding: 0 !important; display: grid; gap: 2px; }
+.checklist label { display: flex; gap: 10px; align-items: flex-start; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+.checklist label:hover { background: var(--surface-2); }
+.checklist input { margin-top: 5px; accent-color: var(--ok); width: 16px; height: 16px; }
+.checklist input:checked + span { color: var(--faint); text-decoration: line-through; }
+
+.note { margin: 22px 0 16px; padding: 16px 20px; border-radius: 12px; background: var(--note-bg); border: 1px solid var(--accent-border); }
+.note-title { display: flex; align-items: center; gap: 8px; margin: 0 0 6px !important; font: 600 12px/1.4 'JetBrains Mono', monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.note p:last-child { margin: 0; }
+
+.step-foot { display: flex; justify-content: flex-end; padding: 18px 0 28px; }
+.done-toggle { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px; font-size: 14px; color: var(--muted); cursor: pointer; background: var(--surface); }
+.done-toggle input { accent-color: var(--ok); width: 16px; height: 16px; margin: 0; }
+.done-toggle:has(input:checked) { border-color: var(--ok); color: var(--ok); }
+
+/* ---------- values panel ---------- */
+.panel {
+  position: fixed; top: 72px; right: 16px; z-index: 40;
+  width: min(380px, calc(100vw - 32px));
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  padding: 20px;
+}
+.panel[hidden] { display: none; }
+.panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.panel h2 { font-size: 1.2rem; }
+.panel > p { margin: 0 0 16px; font-size: 14px; color: var(--muted); }
+.field { display: grid; gap: 4px; margin-bottom: 12px; }
+.field span { font: 600 11px/1.4 'JetBrains Mono', monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.field input { height: 38px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font: 14px 'JetBrains Mono', monospace; }
+.panel .hint { font-size: 12px; color: var(--faint); margin: 4px 0 0; }
+
+/* ---------- present mode ---------- */
+.present-bar { display: none; }
+body.present .topbar, body.present .sidebar, body.present .hero, body.present .chapter { display: none; }
+body.present .layout { display: block; }
+body.present main { padding: 0; }
+body.present .content { max-width: 1180px; }
+body.present .step { display: none; border: 0; }
+body.present .step.current { display: block; min-height: 100vh; padding: 56px clamp(16px, 5vw, 64px) 140px; font-size: 19px; }
+body.present .step.current h2 { font-size: clamp(2rem, 4vw, 3rem); margin-bottom: 28px; }
+body.present .code pre { font-size: 17px; }
+body.present .step-foot { justify-content: flex-start; }
+body.present .present-bar {
+  display: flex; align-items: center; gap: 10px;
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 50;
+  padding: 8px; border-radius: 999px;
+  background: var(--code-bg); color: #EEF1F6; border: 1px solid #2A3A56;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.present-bar button { height: 36px; min-width: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #2A3A56; background: transparent; color: #EEF1F6; font-size: 14px; }
+.present-bar button:hover { border-color: #F5A524; color: #F5A524; }
+.present-bar .count { font: 600 13px/1 'JetBrains Mono', monospace; padding: 0 8px; white-space: nowrap; }
+.present-bar .part { font-size: 13px; color: #8A94A6; padding-right: 6px; white-space: nowrap; max-width: 28vw; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 960px) {
+  .layout { grid-template-columns: 1fr; }
+  .menu-btn { display: inline-flex; }
+  .sidebar {
+    position: fixed; top: 60px; left: 0; z-index: 25;
+    width: min(320px, 86vw); background: var(--bg);
+    transform: translateX(-100%); transition: transform .2s ease;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  }
+  body.nav-open .sidebar { transform: none; }
+  .apps { grid-template-columns: 1fr; }
+  .flow { flex-direction: column; align-items: stretch; }
+  .flow .arrow { width: 2px; height: 18px; min-width: 0; flex: none; align-self: center; }
+  .flow .arrow::after { right: -4px; top: auto; bottom: -1px; border: 5px solid transparent; border-top: 7px solid #F5A524; border-bottom: 0; }
+  .flow .node { white-space: normal; }
+}
+@media (max-width: 640px) {
+  .topbar { padding: 0 12px; gap: 8px; }
+  .brand-text, .progress-text, .hide-sm { display: none; }
+  .chapter { padding: 22px 20px; }
+  .present-bar .part { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="btn icon menu-btn" type="button" data-action="menu" aria-label="Open steps">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <a class="brand" href="#top"><span class="brand-mark">&gt;_</span><span class="brand-text">manjula.xyz deploy</span></a>
+  <span class="spacer"></span>
+  <span class="progress-text" id="progress-text">0 / 80 done</span>
+  <button class="btn" type="button" data-action="vars">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+    <span class="hide-sm">Your values</span>
+  </button>
+  <button class="btn icon" type="button" data-action="theme" aria-label="Toggle theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+  </button>
+  <button class="btn primary" type="button" data-action="present">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    Present <span class="kbd hide-sm" style="border-color:currentColor;color:inherit;opacity:.7">P</span>
+  </button>
+  <div class="progress-bar" id="progress-bar"></div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" aria-label="Steps">
+    <input class="search" id="search" type="search" placeholder="Search steps…  (/)" aria-label="Search steps">
+    <div id="nav"></div>
+    <p class="no-results" id="no-results" hidden>No steps match.</p>
+  </nav>
+  <main>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<div class="panel" id="vars-panel" hidden role="dialog" aria-label="Your values">
+  <div class="panel-head">
+    <h2>Your values</h2>
+    <button class="btn icon" type="button" data-action="vars" aria-label="Close">✕</button>
+  </div>
+  <p>Fill these in and every command on the page updates, ready to copy.</p>
+  <div id="vars-fields"></div>
+  <p class="hint">Values stay in this browser only. The password is never saved.</p>
+</div>
+
+<div class="present-bar" role="toolbar" aria-label="Presenter controls">
+  <button type="button" data-action="prev" aria-label="Previous step">←</button>
+  <span class="count" id="present-count">1 / 80</span>
+  <span class="part" id="present-part"></span>
+  <button type="button" data-action="toggle-done" id="present-done">Mark done</button>
+  <button type="button" data-action="next" aria-label="Next step">→</button>
+  <button type="button" data-action="exit" aria-label="Exit presenter mode">Exit</button>
+</div>
+
+<script id="guide-md" type="text/markdown">
+# Manjula.xyz Production Deployment Guide
+
+## AWS Lightsail + Ubuntu + Nginx + Next.js + React + Laravel + MySQL + PHP 8.4 + PM2 + Cloudflare + Certbot
+
+This guide describes how to deploy three applications on a single AWS Lightsail Ubuntu VPS:
+
+| Application | Domain | Technology |
+|---|---|---|
+| Landing website | `manjula.xyz` | Next.js |
+| Dashboard | `app.manjula.xyz` | React/Vite |
+| Backend API | `api.manjula.xyz` | Laravel + PHP 8.4 |
+
+Additional infrastructure:
+
+- AWS Lightsail Ubuntu VPS
+- Nginx
+- MySQL
+- PHP 8.4 + PHP-FPM
+- Composer
+- Node.js
+- PM2
+- Supervisor
+- Cloudflare DNS + Proxy
+- Let's Encrypt + Certbot
+- UFW firewall
+- Optional Redis
+- Optional swap
+
+---
+
+# 1. Final Architecture
+
+```text
+                         Internet
+                            |
+                    +-------v--------+
+                    |   Cloudflare   |
+                    | DNS + Proxy    |
+                    +-------+--------+
+                            |
+                            | HTTPS
+                            v
+              +---------------------------+
+              | AWS Lightsail Ubuntu VPS  |
+              |                           |
+              |          NGINX            |
+              |       :80 / :443          |
+              +------+--------+-----------+
+                     |        |
+          +----------+        +----------------+
+          |                                   |
+          v                                   v
+   manjula.xyz                         app.manjula.xyz
+   Next.js :3000                       React static files
+   PM2
+          |
+          |
+          +--------------------+
+                               |
+                               v
+                       api.manjula.xyz
+                       Laravel + PHP 8.4
+                               |
+                               v
+                             MySQL
+```
+
+Recommended application directory structure:
+
+```text
+/var/www/
+└── manjula/
+    ├── landing/
+    ├── dashboard/
+    └── backend/
+```
+
+Laravel's public directory:
+
+```text
+/var/www/manjula/backend/public
+```
+
+---
+
+# 2. Domain Configuration
+
+Final DNS records:
+
+| Type | Name | Target | Proxy |
+|---|---|---|---|
+| A | `@` | Lightsail Static IP | Proxied |
+| CNAME | `www` | `manjula.xyz` | Proxied |
+| A | `app` | Lightsail Static IP | Proxied |
+| A | `api` | Lightsail Static IP | Proxied |
+
+Final URLs:
+
+```text
+https://manjula.xyz
+https://www.manjula.xyz
+https://app.manjula.xyz
+https://api.manjula.xyz
+```
+
+---
+
+# 3. Create AWS Lightsail Instance
+
+Create an AWS Lightsail instance:
+
+```text
+Platform:
+Linux/Unix
+
+Operating system:
+Ubuntu
+```
+
+Recommended minimum for a small deployment:
+
+```text
+2 GB RAM
+1-2 vCPU
+40-60 GB SSD
+```
+
+For heavier Laravel applications, builds, MySQL workloads, or multiple sites, use:
+
+```text
+4 GB RAM
+2 vCPU
+```
+
+---
+
+# 4. Create and Attach a Static IP
+
+In AWS Lightsail:
+
+```text
+Networking
+    ->
+Create static IP
+    ->
+Select the instance
+    ->
+Attach
+```
+
+Do this before configuring Cloudflare DNS.
+
+After connecting to the server:
+
+```bash
+curl -4 ifconfig.me
+```
+
+Save this IP as:
+
+```text
+YOUR_SERVER_IP
+```
+
+---
+
+# 5. Configure Lightsail Firewall
+
+Open only:
+
+```text
+SSH     TCP 22
+HTTP    TCP 80
+HTTPS   TCP 443
+```
+
+Do NOT expose:
+
+```text
+3000
+3306
+6379
+8000
+8080
+```
+
+Next.js, MySQL, Redis and other internal services should remain private.
+
+---
+
+# 6. Connect to Ubuntu
+
+From Windows PowerShell:
+
+```bash
+ssh ubuntu@YOUR_SERVER_IP
+```
+
+Check Ubuntu:
+
+```bash
+cat /etc/os-release
+```
+
+Check architecture:
+
+```bash
+uname -m
+```
+
+---
+
+# 7. Update Ubuntu
+
+```bash
+sudo apt update
+sudo apt upgrade -y
+```
+
+Install common tools:
+
+```bash
+sudo apt install -y \
+    curl \
+    wget \
+    git \
+    unzip \
+    zip \
+    vim \
+    nano \
+    htop \
+    software-properties-common \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    ufw
+```
+
+Reboot:
+
+```bash
+sudo reboot
+```
+
+Reconnect:
+
+```bash
+ssh ubuntu@YOUR_SERVER_IP
+```
+
+---
+
+# 8. Configure UFW
+
+Check:
+
+```bash
+sudo ufw status
+```
+
+Allow SSH:
+
+```bash
+sudo ufw allow 22/tcp
+```
+
+Allow HTTP:
+
+```bash
+sudo ufw allow 80/tcp
+```
+
+Allow HTTPS:
+
+```bash
+sudo ufw allow 443/tcp
+```
+
+Enable:
+
+```bash
+sudo ufw enable
+```
+
+Check:
+
+```bash
+sudo ufw status verbose
+```
+
+Expected:
+
+```text
+22/tcp   ALLOW
+80/tcp   ALLOW
+443/tcp  ALLOW
+```
+
+Do NOT run:
+
+```bash
+sudo ufw allow 3000
+sudo ufw allow 3306
+```
+
+---
+
+# 9. Install Nginx
+
+```bash
+sudo apt install -y nginx
+```
+
+Start:
+
+```bash
+sudo systemctl start nginx
+```
+
+Enable at boot:
+
+```bash
+sudo systemctl enable nginx
+```
+
+Check:
+
+```bash
+sudo systemctl status nginx
+```
+
+Test:
+
+```bash
+curl http://127.0.0.1
+```
+
+Check version:
+
+```bash
+nginx -v
+```
+
+---
+
+# 10. Configure Cloudflare DNS
+
+Add `manjula.xyz` to Cloudflare.
+
+Change the domain's nameservers at your registrar to the Cloudflare nameservers provided by Cloudflare.
+
+In:
+
+```text
+Cloudflare
+    ->
+manjula.xyz
+    ->
+DNS
+    ->
+Records
+```
+
+Create:
+
+### Apex domain
+
+```text
+Type: A
+Name: @
+IPv4: YOUR_SERVER_IP
+Proxy: Proxied
+```
+
+### WWW
+
+```text
+Type: CNAME
+Name: www
+Target: manjula.xyz
+Proxy: Proxied
+```
+
+### Dashboard
+
+```text
+Type: A
+Name: app
+IPv4: YOUR_SERVER_IP
+Proxy: Proxied
+```
+
+### API
+
+```text
+Type: A
+Name: api
+IPv4: YOUR_SERVER_IP
+Proxy: Proxied
+```
+
+Verify DNS:
+
+```bash
+nslookup manjula.xyz
+nslookup app.manjula.xyz
+nslookup api.manjula.xyz
+```
+
+Or:
+
+```bash
+dig manjula.xyz
+dig app.manjula.xyz
+dig api.manjula.xyz
+```
+
+If `dig` is unavailable:
+
+```bash
+sudo apt install -y dnsutils
+```
+
+Because Cloudflare Proxy is enabled, DNS may return Cloudflare IP addresses rather than the Lightsail IP. This is expected.
+
+---
+
+# 11. Install MySQL
+
+```bash
+sudo apt install -y mysql-server
+```
+
+Enable:
+
+```bash
+sudo systemctl enable mysql
+```
+
+Start:
+
+```bash
+sudo systemctl start mysql
+```
+
+Check:
+
+```bash
+sudo systemctl status mysql
+```
+
+---
+
+# 12. Secure MySQL
+
+Run:
+
+```bash
+sudo mysql_secure_installation
+```
+
+Remove or disable:
+
+- Anonymous users
+- Remote root login
+- Test database
+- Other unnecessary defaults
+
+---
+
+# 13. Create Laravel Database
+
+Login:
+
+```bash
+sudo mysql
+```
+
+Create database:
+
+```sql
+CREATE DATABASE manjula_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+```
+
+Create user:
+
+```sql
+CREATE USER 'manjula_user'@'localhost'
+IDENTIFIED BY 'YOUR_STRONG_PASSWORD';
+```
+
+Grant privileges:
+
+```sql
+GRANT ALL PRIVILEGES ON manjula_db.*
+TO 'manjula_user'@'localhost';
+```
+
+Apply:
+
+```sql
+FLUSH PRIVILEGES;
+```
+
+Exit:
+
+```sql
+EXIT;
+```
+
+Test:
+
+```bash
+mysql -u manjula_user -p manjula_db
+```
+
+---
+
+# 14. Keep MySQL Private
+
+Check:
+
+```bash
+sudo ss -lntp | grep 3306
+```
+
+MySQL should not be publicly accessible.
+
+The architecture should be:
+
+```text
+Laravel
+   |
+   v
+127.0.0.1:3306
+   |
+   v
+MySQL
+```
+
+Never expose MySQL directly to the Internet.
+
+---
+
+# 15. Install PHP 8.4
+
+Check Ubuntu version:
+
+```bash
+lsb_release -a
+```
+
+For Ubuntu versions where PHP 8.4 is not available from the standard repository, add the maintained PHP PPA:
+
+```bash
+sudo add-apt-repository ppa:ondrej/php
+```
+
+Then:
+
+```bash
+sudo apt update
+```
+
+Install PHP 8.4:
+
+```bash
+sudo apt install -y \
+    php8.4 \
+    php8.4-fpm \
+    php8.4-cli \
+    php8.4-mysql \
+    php8.4-mbstring \
+    php8.4-xml \
+    php8.4-curl \
+    php8.4-zip \
+    php8.4-bcmath \
+    php8.4-intl \
+    php8.4-gd \
+    php8.4-soap
+```
+
+Check:
+
+```bash
+php -v
+```
+
+Expected:
+
+```text
+PHP 8.4.x
+```
+
+---
+
+# 16. Configure PHP-FPM
+
+Check:
+
+```bash
+sudo systemctl status php8.4-fpm
+```
+
+Enable:
+
+```bash
+sudo systemctl enable php8.4-fpm
+```
+
+Start:
+
+```bash
+sudo systemctl start php8.4-fpm
+```
+
+Find the socket:
+
+```bash
+ls -la /run/php/
+```
+
+Expected:
+
+```text
+php8.4-fpm.sock
+```
+
+Nginx will use:
+
+```text
+/run/php/php8.4-fpm.sock
+```
+
+---
+
+# 17. Make PHP 8.4 Default
+
+Check:
+
+```bash
+php -v
+```
+
+If another PHP version is selected:
+
+```bash
+sudo update-alternatives --config php
+```
+
+Select:
+
+```text
+/usr/bin/php8.4
+```
+
+Check:
+
+```bash
+php -v
+```
+
+---
+
+# 18. Install Composer
+
+```bash
+cd /tmp
+```
+
+Download installer:
+
+```bash
+php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+```
+
+Install:
+
+```bash
+sudo php composer-setup.php \
+    --install-dir=/usr/local/bin \
+    --filename=composer
+```
+
+Remove installer:
+
+```bash
+rm composer-setup.php
+```
+
+Check:
+
+```bash
+composer --version
+```
+
+---
+
+# 19. Install Node.js
+
+Use NVM:
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+```
+
+Reload:
+
+```bash
+source ~/.bashrc
+```
+
+Check:
+
+```bash
+nvm --version
+```
+
+Install Node.js LTS:
+
+```bash
+nvm install --lts
+```
+
+Use it:
+
+```bash
+nvm use --lts
+```
+
+Check:
+
+```bash
+node -v
+npm -v
+```
+
+---
+
+# 20. Install PM2
+
+```bash
+npm install -g pm2
+```
+
+Check:
+
+```bash
+pm2 -v
+```
+
+Check Node location:
+
+```bash
+which node
+```
+
+---
+
+# 21. Create Application Directories
+
+```bash
+sudo mkdir -p /var/www/manjula
+```
+
+Create:
+
+```bash
+sudo mkdir -p /var/www/manjula/landing
+sudo mkdir -p /var/www/manjula/dashboard
+sudo mkdir -p /var/www/manjula/backend
+```
+
+Change ownership:
+
+```bash
+sudo chown -R ubuntu:ubuntu /var/www/manjula
+```
+
+Final structure:
+
+```text
+/var/www/manjula/
+├── landing/
+├── dashboard/
+└── backend/
+```
+
+---
+
+# 22. Deploy Laravel Backend
+
+```bash
+cd /var/www/manjula
+```
+
+Clone repository:
+
+```bash
+git clone YOUR_LARAVEL_REPOSITORY backend
+```
+
+Or update an existing repository:
+
+```bash
+cd /var/www/manjula/backend
+git pull
+```
+
+---
+
+# 23. Install Laravel Dependencies
+
+```bash
+cd /var/www/manjula/backend
+```
+
+```bash
+composer install \
+    --no-dev \
+    --optimize-autoloader
+```
+
+---
+
+# 24. Configure Laravel .env
+
+Copy:
+
+```bash
+cp .env.example .env
+```
+
+Edit:
+
+```bash
+nano .env
+```
+
+Example:
+
+```env
+APP_NAME=Manjula
+APP_ENV=production
+APP_KEY=
+APP_DEBUG=false
+APP_URL=https://api.manjula.xyz
+
+LOG_CHANNEL=stack
+LOG_LEVEL=error
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=manjula_db
+DB_USERNAME=manjula_user
+DB_PASSWORD=YOUR_STRONG_PASSWORD
+```
+
+Important:
+
+```env
+APP_DEBUG=false
+```
+
+Never use `APP_DEBUG=true` in production.
+
+---
+
+# 25. Generate Laravel Key
+
+```bash
+php artisan key:generate
+```
+
+Check:
+
+```bash
+grep APP_KEY .env
+```
+
+---
+
+# 26. Run Laravel Migrations
+
+```bash
+php artisan migrate --force
+```
+
+If seeders are required:
+
+```bash
+php artisan db:seed --force
+```
+
+Or:
+
+```bash
+php artisan migrate --seed --force
+```
+
+---
+
+# 27. Create Laravel Storage Link
+
+```bash
+php artisan storage:link
+```
+
+---
+
+# 28. Configure Laravel Permissions
+
+Set ownership:
+
+```bash
+sudo chown -R ubuntu:www-data /var/www/manjula/backend
+```
+
+Set writable directories:
+
+```bash
+sudo chown -R www-data:www-data \
+    /var/www/manjula/backend/storage \
+    /var/www/manjula/backend/bootstrap/cache
+```
+
+Set permissions:
+
+```bash
+sudo chmod -R 775 \
+    /var/www/manjula/backend/storage \
+    /var/www/manjula/backend/bootstrap/cache
+```
+
+Do NOT use:
+
+```bash
+chmod -R 777 /var/www/manjula/backend
+```
+
+---
+
+# 29. Optimize Laravel
+
+```bash
+cd /var/www/manjula/backend
+```
+
+```bash
+php artisan optimize
+```
+
+Optionally:
+
+```bash
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+Use `route:cache` only if your routes support route caching.
+
+Check:
+
+```bash
+php artisan about
+```
+
+---
+
+# 30. Create Laravel Nginx Configuration
+
+Create:
+
+```bash
+sudo nano /etc/nginx/sites-available/api.manjula.xyz
+```
+
+Use:
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name api.manjula.xyz;
+
+    root /var/www/manjula/backend/public;
+
+    index index.php index.html;
+
+    charset utf-8;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /favicon.ico {
+        access_log off;
+        log_not_found off;
+    }
+
+    location = /robots.txt {
+        access_log off;
+        log_not_found off;
+    }
+
+    location ~ ^/index\.php(/|$) {
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+
+    client_max_body_size 20M;
+}
+```
+
+---
+
+# 31. Enable Laravel Nginx Site
+
+```bash
+sudo ln -s \
+    /etc/nginx/sites-available/api.manjula.xyz \
+    /etc/nginx/sites-enabled/api.manjula.xyz
+```
+
+Test:
+
+```bash
+sudo nginx -t
+```
+
+Reload:
+
+```bash
+sudo systemctl reload nginx
+```
+
+Test locally:
+
+```bash
+curl -H "Host: api.manjula.xyz" http://127.0.0.1
+```
+
+---
+
+# 32. Deploy React Dashboard
+
+Assuming the dashboard uses Vite:
+
+```bash
+cd /var/www/manjula
+```
+
+Clone:
+
+```bash
+git clone YOUR_REACT_REPOSITORY dashboard
+```
+
+Enter:
+
+```bash
+cd /var/www/manjula/dashboard
+```
+
+Install:
+
+```bash
+npm install
+```
+
+---
+
+# 33. React Production Environment
+
+Create:
+
+```bash
+nano .env.production
+```
+
+Example:
+
+```env
+VITE_API_URL=https://api.manjula.xyz
+```
+
+Build:
+
+```bash
+npm run build
+```
+
+Vite normally creates:
+
+```text
+dist/
+```
+
+Check:
+
+```bash
+ls -la
+```
+
+Important:
+
+Do not put database passwords or private secrets into `VITE_*` variables because they are compiled into the browser bundle.
+
+---
+
+# 34. React Nginx Configuration
+
+Create:
+
+```bash
+sudo nano /etc/nginx/sites-available/app.manjula.xyz
+```
+
+Use:
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name app.manjula.xyz;
+
+    root /var/www/manjula/dashboard/dist;
+
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
+```
+
+The following is important for React Router:
+
+```nginx
+try_files $uri $uri/ /index.html;
+```
+
+Enable:
+
+```bash
+sudo ln -s \
+    /etc/nginx/sites-available/app.manjula.xyz \
+    /etc/nginx/sites-enabled/app.manjula.xyz
+```
+
+Test:
+
+```bash
+sudo nginx -t
+```
+
+Reload:
+
+```bash
+sudo systemctl reload nginx
+```
+
+Test:
+
+```bash
+curl -H "Host: app.manjula.xyz" http://127.0.0.1
+```
+
+---
+
+# 35. Deploy Next.js Landing Website
+
+```bash
+cd /var/www/manjula
+```
+
+Clone:
+
+```bash
+git clone YOUR_NEXTJS_REPOSITORY landing
+```
+
+Enter:
+
+```bash
+cd /var/www/manjula/landing
+```
+
+Install:
+
+```bash
+npm install
+```
+
+---
+
+# 36. Configure Next.js Environment
+
+Create:
+
+```bash
+nano .env.production
+```
+
+Example:
+
+```env
+NEXT_PUBLIC_API_URL=https://api.manjula.xyz
+```
+
+Remember:
+
+```text
+NEXT_PUBLIC_*
+```
+
+variables are exposed to the browser.
+
+Do not put private secrets into public variables.
+
+---
+
+# 37. Verify Next.js package.json
+
+Your package should have:
+
+```json
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  }
+}
+```
+
+---
+
+# 38. Build Next.js
+
+```bash
+npm run build
+```
+
+Test manually:
+
+```bash
+npm start
+```
+
+It should run on:
+
+```text
+127.0.0.1:3000
+```
+
+Test from another terminal:
+
+```bash
+curl http://127.0.0.1:3000
+```
+
+Stop with:
+
+```text
+CTRL+C
+```
+
+---
+
+# 39. Run Next.js with PM2
+
+```bash
+pm2 start npm \
+    --name manjula-landing \
+    -- start
+```
+
+Check:
+
+```bash
+pm2 status
+```
+
+Check logs:
+
+```bash
+pm2 logs manjula-landing
+```
+
+Test:
+
+```bash
+curl http://127.0.0.1:3000
+```
+
+---
+
+# 40. Configure PM2 Startup
+
+Save:
+
+```bash
+pm2 save
+```
+
+Generate startup command:
+
+```bash
+pm2 startup
+```
+
+PM2 will output a command similar to:
+
+```bash
+sudo env PATH=$PATH:/home/ubuntu/.nvm/versions/node/vXX/bin \
+    /home/ubuntu/.nvm/versions/node/vXX/lib/node_modules/pm2/bin/pm2 \
+    startup systemd -u ubuntu --hp /home/ubuntu
+```
+
+Run the exact command shown by PM2.
+
+Then:
+
+```bash
+pm2 save
+```
+
+Test after reboot:
+
+```bash
+sudo reboot
+```
+
+Reconnect and check:
+
+```bash
+pm2 status
+```
+
+---
+
+# 41. Next.js Nginx Configuration
+
+Create:
+
+```bash
+sudo nano /etc/nginx/sites-available/manjula.xyz
+```
+
+Use:
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name manjula.xyz www.manjula.xyz;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 60s;
+    }
+}
+```
+
+Enable:
+
+```bash
+sudo ln -s \
+    /etc/nginx/sites-available/manjula.xyz \
+    /etc/nginx/sites-enabled/manjula.xyz
+```
+
+---
+
+# 42. Remove Nginx Default Site
+
+Check:
+
+```bash
+ls -la /etc/nginx/sites-enabled/
+```
+
+If `default` exists:
+
+```bash
+sudo rm /etc/nginx/sites-enabled/default
+```
+
+Test:
+
+```bash
+sudo nginx -t
+```
+
+Reload:
+
+```bash
+sudo systemctl reload nginx
+```
+
+---
+
+# 43. Test All Nginx Virtual Hosts
+
+Check:
+
+```bash
+sudo nginx -T | grep server_name
+```
+
+You should see:
+
+```text
+server_name manjula.xyz www.manjula.xyz;
+server_name app.manjula.xyz;
+server_name api.manjula.xyz;
+```
+
+Test:
+
+```bash
+curl -H "Host: manjula.xyz" http://127.0.0.1
+```
+
+```bash
+curl -H "Host: app.manjula.xyz" http://127.0.0.1
+```
+
+```bash
+curl -H "Host: api.manjula.xyz" http://127.0.0.1
+```
+
+---
+
+# 44. Cloudflare SSL Configuration
+
+In Cloudflare:
+
+```text
+SSL/TLS
+    ->
+Overview
+```
+
+Set:
+
+```text
+Full (strict)
+```
+
+Do NOT use Flexible SSL for this architecture.
+
+Desired connection:
+
+```text
+Browser
+   |
+   | HTTPS
+   v
+Cloudflare
+   |
+   | HTTPS
+   v
+Nginx
+```
+
+---
+
+# 45. Install Certbot
+
+Install Snap:
+
+```bash
+sudo apt update
+sudo apt install -y snapd
+```
+
+Enable:
+
+```bash
+sudo systemctl enable --now snapd.socket
+```
+
+Install Certbot:
+
+```bash
+sudo snap install --classic certbot
+```
+
+Create command link:
+
+```bash
+sudo ln -s /snap/bin/certbot /usr/local/bin/certbot
+```
+
+Check:
+
+```bash
+certbot --version
+```
+
+---
+
+# 46. Generate SSL Certificate for Landing
+
+```bash
+sudo certbot --nginx \
+    -d manjula.xyz \
+    -d www.manjula.xyz
+```
+
+---
+
+# 47. Generate SSL Certificate for Dashboard
+
+```bash
+sudo certbot --nginx \
+    -d app.manjula.xyz
+```
+
+---
+
+# 48. Generate SSL Certificate for API
+
+```bash
+sudo certbot --nginx \
+    -d api.manjula.xyz
+```
+
+Certbot will modify Nginx to support HTTPS.
+
+---
+
+# 49. Check Certificates
+
+```bash
+sudo certbot certificates
+```
+
+You should see certificates for:
+
+```text
+manjula.xyz
+www.manjula.xyz
+app.manjula.xyz
+api.manjula.xyz
+```
+
+---
+
+# 50. Test HTTPS
+
+```bash
+curl -I https://manjula.xyz
+```
+
+```bash
+curl -I https://www.manjula.xyz
+```
+
+```bash
+curl -I https://app.manjula.xyz
+```
+
+```bash
+curl -I https://api.manjula.xyz
+```
+
+Open in a browser:
+
+```text
+https://manjula.xyz
+https://app.manjula.xyz
+https://api.manjula.xyz
+```
+
+---
+
+# 51. Test SSL Renewal
+
+```bash
+sudo certbot renew --dry-run
+```
+
+The renewal test should succeed.
+
+---
+
+# 52. Enable Cloudflare HTTPS Redirect
+
+In Cloudflare:
+
+```text
+SSL/TLS
+    ->
+Edge Certificates
+```
+
+Enable:
+
+```text
+Always Use HTTPS
+```
+
+---
+
+# 53. Laravel CORS
+
+The dashboard:
+
+```text
+https://app.manjula.xyz
+```
+
+will call:
+
+```text
+https://api.manjula.xyz
+```
+
+These are different origins.
+
+Configure Laravel CORS to allow:
+
+```text
+https://app.manjula.xyz
+```
+
+If the Next.js landing site also calls the API directly, allow:
+
+```text
+https://manjula.xyz
+```
+
+Avoid blindly using:
+
+```text
+*
+```
+
+especially when using cookie-based authentication.
+
+---
+
+# 54. Laravel Sanctum
+
+If using Sanctum SPA cookie authentication, configure the appropriate values.
+
+Example:
+
+```env
+SESSION_DOMAIN=.manjula.xyz
+SANCTUM_STATEFUL_DOMAINS=app.manjula.xyz
+```
+
+Depending on the authentication implementation, you may instead use bearer/token authentication.
+
+For bearer-token authentication:
+
+```text
+React
+   |
+   | POST /login
+   v
+Laravel
+   |
+   v
+Token
+   |
+   v
+React
+   |
+   | Authorization: Bearer ...
+   v
+Laravel API
+```
+
+For Sanctum SPA cookies, carefully configure:
+
+- CORS
+- `SESSION_DOMAIN`
+- `SANCTUM_STATEFUL_DOMAINS`
+- HTTPS
+- Axios/fetch credentials
+
+---
+
+# 55. Laravel Queue Workers
+
+If Laravel uses queues, use Supervisor.
+
+Install:
+
+```bash
+sudo apt install -y supervisor
+```
+
+Create:
+
+```bash
+sudo nano /etc/supervisor/conf.d/manjula-worker.conf
+```
+
+Example:
+
+```ini
+[program:manjula-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=/usr/bin/php /var/www/manjula/backend/artisan queue:work --sleep=3 --tries=3 --timeout=90
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=2
+redirect_stderr=true
+stdout_logfile=/var/www/manjula/backend/storage/logs/worker.log
+stopwaitsecs=3600
+```
+
+Reload Supervisor:
+
+```bash
+sudo supervisorctl reread
+```
+
+```bash
+sudo supervisorctl update
+```
+
+Check:
+
+```bash
+sudo supervisorctl status
+```
+
+Expected:
+
+```text
+manjula-worker_00 RUNNING
+manjula-worker_01 RUNNING
+```
+
+---
+
+# 56. Laravel Scheduler
+
+If Laravel uses scheduled tasks:
+
+```bash
+sudo crontab -e
+```
+
+Add:
+
+```cron
+* * * * * cd /var/www/manjula/backend && php artisan schedule:run >> /dev/null 2>&1
+```
+
+---
+
+# 57. PHP Upload Configuration
+
+Nginx:
+
+```nginx
+client_max_body_size 20M;
+```
+
+PHP:
+
+```bash
+sudo nano /etc/php/8.4/fpm/php.ini
+```
+
+Example:
+
+```ini
+upload_max_filesize = 20M
+post_max_size = 25M
+```
+
+Restart:
+
+```bash
+sudo systemctl restart php8.4-fpm
+```
+
+---
+
+# 58. Useful Nginx Security Rules
+
+Basic security headers can be added after confirming they do not conflict with your applications:
+
+```nginx
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "SAMEORIGIN" always;
+```
+
+Do not add a complex Content Security Policy until you know all external scripts, fonts, APIs and services used by your applications.
+
+---
+
+# 59. Check PHP-FPM
+
+```bash
+sudo systemctl status php8.4-fpm
+```
+
+Check socket:
+
+```bash
+ls -l /run/php/php8.4-fpm.sock
+```
+
+Check:
+
+```bash
+sudo ss -lx | grep php
+```
+
+---
+
+# 60. Check Nginx
+
+```bash
+sudo systemctl status nginx
+```
+
+Test configuration:
+
+```bash
+sudo nginx -t
+```
+
+View errors:
+
+```bash
+sudo tail -f /var/log/nginx/error.log
+```
+
+View requests:
+
+```bash
+sudo tail -f /var/log/nginx/access.log
+```
+
+---
+
+# 61. Check Laravel Logs
+
+```bash
+tail -f /var/www/manjula/backend/storage/logs/laravel.log
+```
+
+If necessary:
+
+```bash
+sudo tail -f /var/www/manjula/backend/storage/logs/laravel.log
+```
+
+---
+
+# 62. Check PM2
+
+```bash
+pm2 status
+```
+
+Details:
+
+```bash
+pm2 describe manjula-landing
+```
+
+Logs:
+
+```bash
+pm2 logs manjula-landing
+```
+
+Restart:
+
+```bash
+pm2 restart manjula-landing
+```
+
+---
+
+# 63. Check Next.js Port
+
+```bash
+sudo ss -lntp | grep 3000
+```
+
+Ideally Next.js should listen on localhost:
+
+```text
+127.0.0.1:3000
+```
+
+not publicly on:
+
+```text
+0.0.0.0:3000
+```
+
+---
+
+# 64. Check All Listening Ports
+
+```bash
+sudo ss -lntp
+```
+
+Expected public services:
+
+```text
+:22
+:80
+:443
+```
+
+Internal services may include:
+
+```text
+127.0.0.1:3000
+127.0.0.1:3306
+```
+
+The important point is:
+
+```text
+3000 -> localhost only
+3306 -> localhost only
+```
+
+---
+
+# 65. Add Swap
+
+For a 1-2 GB VPS, swap is strongly recommended because Next.js builds can consume significant memory.
+
+Check:
+
+```bash
+free -h
+```
+
+If:
+
+```text
+Swap: 0B
+```
+
+Create 2 GB swap:
+
+```bash
+sudo fallocate -l 2G /swapfile
+```
+
+Secure:
+
+```bash
+sudo chmod 600 /swapfile
+```
+
+Initialize:
+
+```bash
+sudo mkswap /swapfile
+```
+
+Enable:
+
+```bash
+sudo swapon /swapfile
+```
+
+Check:
+
+```bash
+free -h
+```
+
+Make permanent:
+
+```bash
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+---
+
+# 66. Optional Redis
+
+Redis is not required initially.
+
+If needed:
+
+```bash
+sudo apt install -y redis-server
+```
+
+Check:
+
+```bash
+sudo systemctl status redis-server
+```
+
+Test:
+
+```bash
+redis-cli ping
+```
+
+Expected:
+
+```text
+PONG
+```
+
+Keep Redis private. Do not expose port `6379` publicly.
+
+---
+
+# 67. Production Environment Variables
+
+## Laravel
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://api.manjula.xyz
+```
+
+## React
+
+```env
+VITE_API_URL=https://api.manjula.xyz
+```
+
+## Next.js
+
+```env
+NEXT_PUBLIC_API_URL=https://api.manjula.xyz
+```
+
+Never put private secrets into frontend/public environment variables.
+
+---
+
+# 68. Deployment Workflow
+
+## Next.js
+
+```bash
+cd /var/www/manjula/landing
+
+git pull
+
+npm install
+
+npm run build
+
+pm2 restart manjula-landing
+
+pm2 save
+```
+
+---
+
+## React
+
+```bash
+cd /var/www/manjula/dashboard
+
+git pull
+
+npm install
+
+npm run build
+```
+
+No PM2 restart is required because Nginx serves the generated `dist` directory.
+
+---
+
+## Laravel
+
+```bash
+cd /var/www/manjula/backend
+
+git pull
+
+composer install --no-dev --optimize-autoloader
+
+php artisan migrate --force
+
+php artisan optimize
+
+sudo chown -R www-data:www-data storage bootstrap/cache
+
+sudo systemctl reload nginx
+```
+
+If queues changed:
+
+```bash
+sudo supervisorctl restart manjula-worker:*
+```
+
+---
+
+# 69. Laravel Deployment Script
+
+Create:
+
+```bash
+nano /var/www/manjula/deploy-backend.sh
+```
+
+Content:
+
+```bash
+#!/bin/bash
+
+set -e
+
+cd /var/www/manjula/backend
+
+echo "Pulling latest code..."
+git pull origin main
+
+echo "Installing Composer dependencies..."
+composer install --no-dev --optimize-autoloader
+
+echo "Running migrations..."
+php artisan migrate --force
+
+echo "Clearing caches..."
+php artisan optimize:clear
+
+echo "Building caches..."
+php artisan optimize
+
+echo "Fixing permissions..."
+sudo chown -R www-data:www-data storage bootstrap/cache
+sudo chmod -R 775 storage bootstrap/cache
+
+echo "Restarting queue workers..."
+sudo supervisorctl restart manjula-worker:*
+
+echo "Deployment complete."
+```
+
+Make executable:
+
+```bash
+chmod +x /var/www/manjula/deploy-backend.sh
+```
+
+Run:
+
+```bash
+/var/www/manjula/deploy-backend.sh
+```
+
+---
+
+# 70. Next.js Deployment Script
+
+Create:
+
+```bash
+nano /var/www/manjula/deploy-landing.sh
+```
+
+Content:
+
+```bash
+#!/bin/bash
+
+set -e
+
+cd /var/www/manjula/landing
+
+echo "Pulling latest code..."
+git pull origin main
+
+echo "Installing dependencies..."
+npm install
+
+echo "Building Next.js..."
+npm run build
+
+echo "Restarting PM2..."
+pm2 restart manjula-landing
+
+echo "Saving PM2..."
+pm2 save
+
+echo "Deployment complete."
+```
+
+Make executable:
+
+```bash
+chmod +x /var/www/manjula/deploy-landing.sh
+```
+
+---
+
+# 71. Database Backups
+
+Create backup directory:
+
+```bash
+mkdir -p ~/backups
+```
+
+Backup:
+
+```bash
+mysqldump \
+    -u manjula_user \
+    -p \
+    manjula_db > ~/backups/manjula_db.sql
+```
+
+Compress:
+
+```bash
+gzip ~/backups/manjula_db.sql
+```
+
+You will get:
+
+```text
+~/backups/manjula_db.sql.gz
+```
+
+---
+
+# 72. Restore Database
+
+Uncompress:
+
+```bash
+gunzip manjula_db.sql.gz
+```
+
+Restore:
+
+```bash
+mysql \
+    -u manjula_user \
+    -p \
+    manjula_db < manjula_db.sql
+```
+
+---
+
+# 73. Lightsail Snapshots
+
+Create regular Lightsail snapshots.
+
+Recommended:
+
+```text
+Daily database backups
++
+Regular Lightsail snapshots
++
+Off-server backup copies
+```
+
+Do not rely exclusively on a backup stored in the same environment as the production server.
+
+---
+
+# 74. Git Security
+
+Do not commit:
+
+```text
+.env
+.env.production
+database passwords
+API secrets
+private keys
+```
+
+Recommended `.gitignore`:
+
+```gitignore
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+dist/
+vendor/
+```
+
+Review:
+
+```bash
+git status
+```
+
+---
+
+# 75. Final Directory Structure
+
+```text
+/var/www/manjula/
+│
+├── landing/
+│   ├── .env.production
+│   ├── package.json
+│   ├── .next/
+│   └── ...
+│
+├── dashboard/
+│   ├── .env.production
+│   ├── package.json
+│   ├── dist/
+│   └── ...
+│
+├── backend/
+│   ├── .env
+│   ├── app/
+│   ├── bootstrap/
+│   ├── config/
+│   ├── public/
+│   ├── storage/
+│   ├── vendor/
+│   └── ...
+│
+├── deploy-backend.sh
+└── deploy-landing.sh
+```
+
+---
+
+# 76. Final Nginx Structure
+
+```text
+/etc/nginx/
+│
+├── nginx.conf
+│
+├── sites-available/
+│   ├── manjula.xyz
+│   ├── app.manjula.xyz
+│   └── api.manjula.xyz
+│
+└── sites-enabled/
+    ├── manjula.xyz
+    ├── app.manjula.xyz
+    └── api.manjula.xyz
+```
+
+---
+
+# 77. Final Request Flow
+
+## Landing
+
+```text
+Browser
+   |
+   v
+https://manjula.xyz
+   |
+   v
+Cloudflare
+   |
+   v
+Nginx :443
+   |
+   v
+127.0.0.1:3000
+   |
+   v
+Next.js
+   |
+   v
+PM2
+```
+
+## Dashboard
+
+```text
+Browser
+   |
+   v
+https://app.manjula.xyz
+   |
+   v
+Cloudflare
+   |
+   v
+Nginx :443
+   |
+   v
+/var/www/manjula/dashboard/dist
+```
+
+## API
+
+```text
+Browser / React / Next.js
+   |
+   v
+https://api.manjula.xyz
+   |
+   v
+Cloudflare
+   |
+   v
+Nginx :443
+   |
+   v
+/var/www/manjula/backend/public
+   |
+   v
+PHP 8.4-FPM
+   |
+   v
+Laravel
+   |
+   v
+127.0.0.1:3306
+   |
+   v
+MySQL
+```
+
+---
+
+# 78. Production Checklist
+
+## AWS
+
+- [ ] Lightsail Ubuntu instance created
+- [ ] Static IP attached
+- [ ] Port 22 open
+- [ ] Port 80 open
+- [ ] Port 443 open
+- [ ] Port 3000 NOT public
+- [ ] Port 3306 NOT public
+- [ ] Port 6379 NOT public
+
+## Ubuntu
+
+- [ ] System updated
+- [ ] UFW configured
+- [ ] Nginx installed
+- [ ] MySQL installed
+- [ ] PHP 8.4 installed
+- [ ] PHP-FPM running
+- [ ] Composer installed
+- [ ] Node.js installed
+- [ ] PM2 installed
+- [ ] Supervisor installed
+- [ ] Swap configured if necessary
+
+## Cloudflare
+
+- [ ] `@` A record
+- [ ] `www` CNAME
+- [ ] `app` A record
+- [ ] `api` A record
+- [ ] Web records proxied
+- [ ] SSL/TLS = Full (strict)
+- [ ] Always Use HTTPS enabled
+
+## Next.js
+
+- [ ] `.env.production`
+- [ ] `npm install`
+- [ ] `npm run build`
+- [ ] PM2 process running
+- [ ] PM2 startup configured
+- [ ] PM2 saved
+- [ ] Nginx reverse proxy configured
+
+## React
+
+- [ ] Production API URL configured
+- [ ] `npm run build`
+- [ ] `dist/` exists
+- [ ] Nginx configured
+- [ ] React Router fallback configured
+
+## Laravel
+
+- [ ] `.env`
+- [ ] `APP_DEBUG=false`
+- [ ] `APP_KEY`
+- [ ] MySQL connection
+- [ ] Migrations completed
+- [ ] Storage link created
+- [ ] Permissions configured
+- [ ] Nginx uses `public`
+- [ ] PHP 8.4-FPM configured
+- [ ] Queue workers configured if required
+- [ ] Scheduler configured if required
+- [ ] CORS configured
+
+## SSL
+
+- [ ] `manjula.xyz`
+- [ ] `www.manjula.xyz`
+- [ ] `app.manjula.xyz`
+- [ ] `api.manjula.xyz`
+- [ ] `certbot renew --dry-run` successful
+
+---
+
+# 79. Useful Troubleshooting Commands
+
+## DNS
+
+```bash
+dig manjula.xyz
+dig app.manjula.xyz
+dig api.manjula.xyz
+```
+
+## Nginx
+
+```bash
+sudo nginx -t
+sudo systemctl status nginx
+sudo nginx -T
+```
+
+## PHP
+
+```bash
+php -v
+sudo systemctl status php8.4-fpm
+```
+
+## MySQL
+
+```bash
+sudo systemctl status mysql
+```
+
+## PM2
+
+```bash
+pm2 status
+pm2 describe manjula-landing
+pm2 logs manjula-landing
+```
+
+## Next.js
+
+```bash
+curl http://127.0.0.1:3000
+```
+
+## Laravel
+
+```bash
+curl -H "Host: api.manjula.xyz" http://127.0.0.1
+```
+
+## Nginx Logs
+
+```bash
+sudo tail -100 /var/log/nginx/error.log
+sudo tail -100 /var/log/nginx/access.log
+```
+
+## Laravel Logs
+
+```bash
+tail -100 /var/www/manjula/backend/storage/logs/laravel.log
+```
+
+## Memory
+
+```bash
+free -h
+```
+
+## Disk
+
+```bash
+df -h
+```
+
+## Processes
+
+```bash
+htop
+```
+
+## Listening Ports
+
+```bash
+sudo ss -lntp
+```
+
+---
+
+# 80. Recommended Final Architecture
+
+```text
+                         CLOUDFLARE
+                    DNS + Proxy + SSL
+                            |
+          +-----------------+------------------+
+          |                 |                  |
+          v                 v                  v
+   manjula.xyz       app.manjula.xyz    api.manjula.xyz
+          |                 |                  |
+          v                 v                  v
+       NGINX             NGINX              NGINX
+          |                 |                  |
+          v                 v                  v
+     localhost:3000      React/dist        PHP-FPM
+          |                                    |
+          v                                    v
+       PM2                                  Laravel
+                                               |
+                                               v
+                                            MySQL
+```
+
+The key production principle is:
+
+**Nginx should be the only public application entry point.**
+
+Next.js runs privately on `127.0.0.1:3000`, MySQL remains private, PHP-FPM uses a local Unix socket, and Laravel is exposed through the Nginx API virtual host.
+
+This structure also makes it easy to add future applications:
+
+```text
+blog.manjula.xyz
+admin.manjula.xyz
+status.manjula.xyz
+files.manjula.xyz
+api-v2.manjula.xyz
+```
+
+without requiring a separate VPS for every application.
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- storage (never required) ---------- */
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  };
+
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const varify = h => h.replace(/\bYOUR_[A-Z_]+\b/g, m => `<span class="var" data-var="${m}">${m}</span>`);
+
+  const CHAPTERS = [
+    { from: 1,  to: 2,  name: 'Overview',              desc: 'The target architecture and the domain plan.' },
+    { from: 3,  to: 10, name: 'Server & network',      desc: 'Lightsail instance, static IP, both firewalls, Nginx and Cloudflare DNS.' },
+    { from: 11, to: 20, name: 'Runtime stack',         desc: 'MySQL, PHP 8.4 with FPM, Composer, Node.js and PM2.' },
+    { from: 21, to: 31, name: 'Laravel API',           desc: 'api.manjula.xyz: code, database, permissions and the Nginx site.' },
+    { from: 32, to: 34, name: 'React dashboard',       desc: 'app.manjula.xyz: a static Vite build served straight from Nginx.' },
+    { from: 35, to: 43, name: 'Next.js landing site',  desc: 'manjula.xyz: a PM2 process behind an Nginx reverse proxy.' },
+    { from: 44, to: 52, name: 'HTTPS',                 desc: 'Cloudflare Full (strict) plus Let’s Encrypt certificates on the origin.' },
+    { from: 53, to: 58, name: 'Laravel in production', desc: 'CORS, Sanctum, queue workers, the scheduler, uploads and headers.' },
+    { from: 59, to: 66, name: 'Health checks',         desc: 'Verify services, listening ports, memory and optional Redis.' },
+    { from: 67, to: 80, name: 'Operations',            desc: 'Deploy workflow, scripts, backups, checklists and troubleshooting.' }
+  ];
+
+  const NOTES = {
+    28: 'Step 29 runs <code>php artisan optimize</code> as <code>ubuntu</code>, which is not in the <code>www-data</code> group, so it cannot write to <code>bootstrap/cache</code> once that belongs to <code>www-data:www-data</code>. Run <code>sudo usermod -aG www-data ubuntu</code> (then reconnect) and give the writable folders <code>ubuntu:www-data</code> ownership with mode 775.',
+    39: '<code>next start</code> listens on <code>0.0.0.0</code> by default. To keep it on localhost, as step 63 recommends, start it with <code>pm2 start npm --name manjula-landing -- start -- -H 127.0.0.1</code>.',
+    44: 'For a smooth demo, switch to Full (strict) <strong>after</strong> the certificates exist (steps 46–49). Until then Nginx has nothing listening on 443, and visitors get a Cloudflare 52x error.',
+    56: '<code>sudo crontab -e</code> edits root’s crontab, so the scheduler runs as root and can create root-owned files in <code>storage/logs</code> that PHP-FPM then cannot write. Use <code>sudo crontab -u www-data -e</code> instead.',
+    58: 'Behind Cloudflare, Nginx and Laravel see Cloudflare’s IPs instead of visitors’. Add <code>set_real_ip_from</code> lines for Cloudflare’s published IP ranges plus <code>real_ip_header CF-Connecting-IP;</code> in Nginx, and configure Laravel’s trusted proxies, so logs and rate limits see real addresses.'
+  };
+
+  const VARS = [
+    { key: 'YOUR_SERVER_IP',          label: 'Server static IP',   ph: 'e.g. 13.250.12.34' },
+    { key: 'YOUR_STRONG_PASSWORD',    label: 'MySQL password',     ph: 'not saved', secret: true },
+    { key: 'YOUR_LARAVEL_REPOSITORY', label: 'Laravel repo URL',   ph: 'git@github.com:you/backend.git' },
+    { key: 'YOUR_REACT_REPOSITORY',   label: 'React repo URL',     ph: 'git@github.com:you/dashboard.git' },
+    { key: 'YOUR_NEXTJS_REPOSITORY',  label: 'Next.js repo URL',   ph: 'git@github.com:you/landing.git' }
+  ];
+
+  const LANGS = { bash: 'Terminal', nginx: 'Nginx', env: 'Environment', sql: 'MySQL', ini: 'Config', cron: 'Crontab', json: 'JSON', gitignore: '.gitignore' };
+
+  /* ---------- markdown → html ---------- */
+  function inline(s) {
+    let h = esc(s);
+    h = h.replace(/`([^`]+)`/g, (_, c) => `<code>${varify(c)}</code>`);
+    h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    return h;
+  }
+
+  function codeBlock(text, lang, danger) {
+    const isText = !lang || lang === 'text';
+    const body = `<pre><code>${varify(esc(text))}</code></pre>`;
+    if (isText && !danger) return `<div class="code plain">${body}</div>`;
+    const label = danger ? 'Avoid' : (LANGS[lang] || lang);
+    const copy = danger ? '' : '<button class="copy" type="button">Copy</button>';
+    return `<div class="code${danger ? ' danger' : ''}${isText ? ' plain' : ''}"><div class="code-head"><span>${esc(label)}</span>${copy}</div>${body}</div>`;
+  }
+
+  function table(rows) {
+    const cells = r => r.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+    const head = cells(rows[0]);
+    const body = rows.slice(1).filter(r => !/^\|[\s:|-]+\|?$/.test(r.trim()));
+    return '<div class="table-wrap"><table><thead><tr>' + head.map(h => `<th>${inline(h)}</th>`).join('') +
+      '</tr></thead><tbody>' + body.map(r => '<tr>' + cells(r).map(c => `<td>${inline(c)}</td>`).join('') + '</tr>').join('') +
+      '</tbody></table></div>';
+  }
+
+  function renderBlocks(ls, n) {
+    const out = [];
+    let i = 0, dangerNext = false, ck = 0;
+    while (i < ls.length) {
+      const l = ls[i];
+      let m;
+      if (/^```/.test(l)) {
+        const lang = l.slice(3).trim();
+        const buf = [];
+        i++;
+        while (i < ls.length && !/^```/.test(ls[i])) { buf.push(ls[i]); i++; }
+        i++;
+        out.push(codeBlock(buf.join('\n'), lang, dangerNext));
+        dangerNext = false;
+        continue;
+      }
+      if (/^\s*$/.test(l) || /^---\s*$/.test(l)) { i++; continue; }
+      if ((m = l.match(/^(#{2,4})\s+(.*)$/))) {
+        const tag = m[1].length === 2 ? 'h3' : 'h4';
+        out.push(`<${tag}>${inline(m[2])}</${tag}>`);
+        dangerNext = false;
+        i++;
+        continue;
+      }
+      if (/^\|/.test(l)) {
+        const rows = [];
+        while (i < ls.length && /^\|/.test(ls[i])) { rows.push(ls[i]); i++; }
+        out.push(table(rows));
+        continue;
+      }
+      if (/^- /.test(l)) {
+        const items = [];
+        while (i < ls.length && /^- /.test(ls[i])) { items.push(ls[i].slice(2)); i++; }
+        if (items.every(t => /^\[[ xX]\] /.test(t))) {
+          out.push('<ul class="checklist">' + items.map(t => {
+            ck++;
+            return `<li><label><input type="checkbox" data-check="ck-${n}-${ck}"><span>${inline(t.slice(4))}</span></label></li>`;
+          }).join('') + '</ul>');
+        } else {
+          out.push('<ul>' + items.map(t => `<li>${inline(t)}</li>`).join('') + '</ul>');
+        }
+        continue;
+      }
+      const buf = [];
+      while (i < ls.length && !/^\s*$/.test(ls[i]) && !/^(```|#{1,4} |\||- |---)/.test(ls[i])) { buf.push(ls[i]); i++; }
+      if (!buf.length) { buf.push(l); i++; }
+      const text = buf.join(' ');
+      if (/^(Do NOT|Do not use|Never|Avoid)\b/.test(text) && /:$/.test(text)) {
+        out.push(`<p class="label danger-label">${inline(text.replace(/:$/, ''))}</p>`);
+        dangerNext = true;
+      } else if (/:$/.test(text) && text.length < 48) {
+        out.push(`<p class="label">${inline(text.replace(/:$/, ''))}</p>`);
+      } else if (/^(Never|Do not|Do NOT|Avoid)\b/.test(text)) {
+        out.push(`<p class="callout warn">${inline(text)}</p>`);
+      } else if (/^\*\*.*\*\*$/.test(text)) {
+        out.push(`<p class="callout key">${inline(text)}</p>`);
+      } else {
+        out.push(`<p>${inline(text)}</p>`);
+      }
+    }
+    return out.join('');
+  }
+
+  /* ---------- parse the guide ---------- */
+  const lines = document.getElementById('guide-md').textContent.replace(/\r\n/g, '\n').split('\n');
+  const intro = [];
+  const steps = [];
+  let cur = null;
+  for (const l of lines) {
+    const m = l.match(/^# (\d+)\.\s+(.*)$/);
+    if (m) { cur = { n: +m[1], title: m[2], lines: [] }; steps.push(cur); continue; }
+    if (cur) cur.lines.push(l); else intro.push(l);
+  }
+  steps.forEach(s => {
+    const ch = CHAPTERS.find(c => s.n >= c.from && s.n <= c.to) || CHAPTERS[CHAPTERS.length - 1];
+    s.chapter = ch;
+    s.search = (s.title + ' ' + s.lines.join(' ')).toLowerCase();
+  });
+
+  const title = ((intro.find(l => /^# /.test(l)) || '# Deployment Guide').slice(2)).replace(/ Production Deployment Guide$/, '');
+  const subtitle = (intro.find(l => /^## /.test(l)) || '').slice(3);
+  const desc = intro.find(l => /^This guide/.test(l)) || '';
+  const appRows = intro.filter(l => /^\|/.test(l)).slice(2).map(r => r.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()));
+  const chips = intro.filter(l => /^- /.test(l)).map(l => l.slice(2));
+
+  /* ---------- build the page ---------- */
+  let html = `
+  <section class="hero" id="top">
+    <p class="eyebrow">Production deployment guide</p>
+    <h1>${esc(title)} in production</h1>
+    <p class="lede">${inline(desc)}</p>
+    <div class="apps">${appRows.map(r => `
+      <div class="app-card"><div class="domain">${esc(r[1].replace(/`/g, ''))}</div><h3>${esc(r[0])}</h3><p>${esc(r[2])}</p></div>`).join('')}
+    </div>
+    <div class="flow" role="img" aria-label="Request flow: Browser to Cloudflare to Nginx, which routes to Next.js, React or Laravel">
+      <div class="node">Browser<small>visitors</small></div><div class="arrow"></div>
+      <div class="node">Cloudflare<small>DNS · proxy · TLS</small></div><div class="arrow"></div>
+      <div class="node hot">Nginx<small>:80 / :443 only</small></div><div class="arrow"></div>
+      <div class="targets">
+        <div class="node">Next.js<small>127.0.0.1:3000 · PM2</small></div>
+        <div class="node">React<small>dist/ static files</small></div>
+        <div class="node">Laravel<small>PHP-FPM → MySQL</small></div>
+      </div>
+    </div>
+    <div class="chips">${chips.map(c => `<span class="chip">${esc(c)}</span>`).join('')}</div>
+    <div class="hero-actions">
+      <a class="btn primary" href="#step-1">Start at step 1</a>
+      <button class="btn" type="button" data-action="present">Present step by step</button>
+      <button class="btn" type="button" data-action="vars">Fill in your values</button>
+    </div>
+    <p class="hero-meta">${steps.length} steps in ${CHAPTERS.length} parts · ${esc(subtitle)}</p>
+  </section>`;
+
+  let nav = '';
+  CHAPTERS.forEach((ch, ci) => {
+    const chSteps = steps.filter(s => s.chapter === ch);
+    if (!chSteps.length) return;
+    html += `
+    <div class="chapter" id="part-${ci + 1}">
+      <p class="eyebrow">Part ${ci + 1}</p>
+      <h2>${esc(ch.name)}</h2>
+      <p>${esc(ch.desc)}</p>
+      <span class="range">Steps ${ch.from}–${ch.to}</span>
+    </div>`;
+    nav += `<div class="nav-group" data-part="${ci + 1}"><p class="nav-part">${ci + 1} · ${esc(ch.name)}</p>`;
+    chSteps.forEach(s => {
+      const note = NOTES[s.n] ? `<aside class="note"><p class="note-title">⚑ Reviewer note</p><p>${NOTES[s.n]}</p></aside>` : '';
+      html += `
+    <section class="step" id="step-${s.n}" data-n="${s.n}">
+      <p class="step-meta"><span class="step-num">Step ${s.n}</span><span>${esc(ch.name)}</span></p>
+      <h2>${inline(s.title)}</h2>
+      <div class="step-body">${renderBlocks(s.lines, s.n)}${note}</div>
+      <footer class="step-foot"><label class="done-toggle"><input type="checkbox" data-done="${s.n}"><span>Mark step done</span></label></footer>
+    </section>`;
+      nav += `<a class="nav-link" href="#step-${s.n}" data-n="${s.n}"><span class="n">${s.n}</span><span class="t">${esc(s.title)}</span><span class="tick" aria-hidden="true"></span></a>`;
+    });
+    nav += '</div>';
+  });
+
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('nav').innerHTML = nav;
+
+  const stepEls = [...document.querySelectorAll('.step')];
+  const navLinks = new Map([...document.querySelectorAll('.nav-link')].map(a => [a.dataset.n, a]));
+
+  /* ---------- progress ---------- */
+  let done = new Set(store.get('mxg-done', []).map(String));
+  let checks = new Set(store.get('mxg-checks', []));
+
+  function renderProgress() {
+    stepEls.forEach(el => {
+      const n = el.dataset.n, isDone = done.has(n);
+      el.classList.toggle('is-done', isDone);
+      el.querySelector('[data-done]').checked = isDone;
+      const a = navLinks.get(n);
+      if (a) a.classList.toggle('done', isDone);
+    });
+    document.getElementById('progress-text').textContent = `${done.size} / ${stepEls.length} done`;
+    document.getElementById('progress-bar').style.width = (done.size / stepEls.length * 100) + '%';
+    const cur = stepEls[presentIdx];
+    if (cur) document.getElementById('present-done').textContent = done.has(cur.dataset.n) ? 'Done ✓' : 'Mark done';
+  }
+  function setDone(n, on) {
+    n = String(n);
+    on ? done.add(n) : done.delete(n);
+    store.set('mxg-done', [...done]);
+    renderProgress();
+  }
+  document.querySelectorAll('[data-check]').forEach(cb => { cb.checked = checks.has(cb.dataset.check); });
+
+  document.addEventListener('change', e => {
+    const t = e.target;
+    if (t.matches('[data-done]')) setDone(t.dataset.done, t.checked);
+    if (t.matches('[data-check]')) {
+      t.checked ? checks.add(t.dataset.check) : checks.delete(t.dataset.check);
+      store.set('mxg-checks', [...checks]);
+    }
+  });
+
+  /* ---------- your values ---------- */
+  const saved = store.get('mxg-vars', {});
+  const values = {};
+  const fields = document.getElementById('vars-fields');
+  fields.innerHTML = VARS.map(v => `
+    <label class="field"><span>${esc(v.label)}</span>
+      <input type="${v.secret ? 'password' : 'text'}" data-var-input="${v.key}" placeholder="${esc(v.ph)}" autocomplete="off" spellcheck="false">
+    </label>`).join('');
+  VARS.forEach(v => { if (!v.secret && saved[v.key]) values[v.key] = saved[v.key]; });
+  fields.querySelectorAll('input').forEach(inp => { inp.value = values[inp.dataset.varInput] || ''; });
+
+  function renderVars() {
+    document.querySelectorAll('.var').forEach(s => {
+      const v = values[s.dataset.var];
+      s.textContent = v || s.dataset.var;
+      s.classList.toggle('filled', !!v);
+    });
+  }
+  fields.addEventListener('input', e => {
+    const k = e.target.dataset.varInput;
+    if (!k) return;
+    values[k] = e.target.value.trim();
+    const toSave = {};
+    VARS.forEach(v => { if (!v.secret && values[v.key]) toSave[v.key] = values[v.key]; });
+    store.set('mxg-vars', toSave);
+    renderVars();
+  });
+  renderVars();
+
+  /* ---------- copy ---------- */
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise((res, rej) => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy') ? res() : rej(); } catch (err) { rej(err); }
+      ta.remove();
+    });
+  }
+
+  /* ---------- theme ---------- */
+  const root = document.documentElement;
+  const savedTheme = store.get('mxg-theme', null);
+  if (savedTheme) root.dataset.theme = savedTheme;
+  function toggleTheme() {
+    const isDark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = isDark ? 'light' : 'dark';
+    store.set('mxg-theme', root.dataset.theme);
+  }
+
+  /* ---------- active step tracking ---------- */
+  let activeN = null;
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (!en.isIntersecting || document.body.classList.contains('present')) return;
+      const n = en.target.dataset.n;
+      if (n === activeN) return;
+      if (activeN && navLinks.get(activeN)) navLinks.get(activeN).classList.remove('active');
+      activeN = n;
+      const a = navLinks.get(n);
+      if (a) {
+        a.classList.add('active');
+        const sb = document.querySelector('.sidebar');
+        const r = a.getBoundingClientRect(), sr = sb.getBoundingClientRect();
+        if (r.top < sr.top + 40 || r.bottom > sr.bottom - 40) sb.scrollTop += r.top - sr.top - sr.height / 3;
+      }
+    });
+  }, { rootMargin: '-25% 0px -65% 0px' });
+  stepEls.forEach(el => io.observe(el));
+
+  /* ---------- search ---------- */
+  const search = document.getElementById('search');
+  search.addEventListener('input', () => {
+    const q = search.value.trim().toLowerCase();
+    let any = false;
+    document.querySelectorAll('.nav-group').forEach(g => {
+      let shown = 0;
+      g.querySelectorAll('.nav-link').forEach(a => {
+        const s = steps.find(x => String(x.n) === a.dataset.n);
+        const hit = !q || s.search.includes(q);
+        a.hidden = !hit;
+        if (hit) shown++;
+      });
+      g.hidden = shown === 0;
+      if (shown) any = true;
+    });
+    document.getElementById('no-results').hidden = any;
+  });
+
+  /* ---------- presenter mode ---------- */
+  let presentIdx = 0;
+  function showStep(i) {
+    presentIdx = Math.max(0, Math.min(stepEls.length - 1, i));
+    stepEls.forEach((el, k) => el.classList.toggle('current', k === presentIdx));
+    const el = stepEls[presentIdx];
+    const s = steps[presentIdx];
+    document.getElementById('present-count').textContent = `${presentIdx + 1} / ${stepEls.length}`;
+    document.getElementById('present-part').textContent = s.chapter.name;
+    renderProgress();
+    window.scrollTo(0, 0);
+    try { history.replaceState(null, '', '#step-' + el.dataset.n); } catch (e) {}
+  }
+  function enterPresent() {
+    const start = activeN ? stepEls.findIndex(el => el.dataset.n === activeN) : 0;
+    document.body.classList.remove('nav-open');
+    document.getElementById('vars-panel').hidden = true;
+    document.body.classList.add('present');
+    showStep(start < 0 ? 0 : start);
+  }
+  function exitPresent() {
+    document.body.classList.remove('present');
+    stepEls.forEach(el => el.classList.remove('current'));
+    stepEls[presentIdx].scrollIntoView({ block: 'start', behavior: 'instant' });
+  }
+
+  /* ---------- clicks ---------- */
+  document.addEventListener('click', e => {
+    const copy = e.target.closest('.copy');
+    if (copy) {
+      const code = copy.closest('.code').querySelector('code');
+      copyText(code.innerText).then(() => {
+        copy.textContent = 'Copied'; copy.classList.add('copied');
+        setTimeout(() => { copy.textContent = 'Copy'; copy.classList.remove('copied'); }, 1400);
+      }, () => { copy.textContent = 'Select & copy'; });
+      return;
+    }
+    const act = e.target.closest('[data-action]');
+    if (act) {
+      const a = act.dataset.action;
+      if (a === 'present') enterPresent();
+      else if (a === 'exit') exitPresent();
+      else if (a === 'next') showStep(presentIdx + 1);
+      else if (a === 'prev') showStep(presentIdx - 1);
+      else if (a === 'toggle-done') { const n = stepEls[presentIdx].dataset.n; setDone(n, !done.has(n)); }
+      else if (a === 'theme') toggleTheme();
+      else if (a === 'menu') document.body.classList.toggle('nav-open');
+      else if (a === 'vars') {
+        const p = document.getElementById('vars-panel');
+        p.hidden = !p.hidden;
+        if (!p.hidden) p.querySelector('input').focus();
+      }
+      return;
+    }
+    if (e.target.closest('.nav-link')) document.body.classList.remove('nav-open');
+  });
+
+  /* ---------- keyboard ---------- */
+  document.addEventListener('keydown', e => {
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    const presenting = document.body.classList.contains('present');
+    if (e.key === 'Escape') {
+      if (presenting) exitPresent();
+      document.getElementById('vars-panel').hidden = true;
+      document.body.classList.remove('nav-open');
+      if (typing) document.activeElement.blur();
+      return;
+    }
+    if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (presenting) {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); showStep(presentIdx + 1); }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); showStep(presentIdx - 1); }
+      else if (e.key === 'Home') { e.preventDefault(); showStep(0); }
+      else if (e.key === 'End') { e.preventDefault(); showStep(stepEls.length - 1); }
+      else if (e.key === 'd' || e.key === 'D') { const n = stepEls[presentIdx].dataset.n; setDone(n, !done.has(n)); }
+      else if (e.key === 'p' || e.key === 'P') exitPresent();
+      return;
+    }
+    if (e.key === 'p' || e.key === 'P') enterPresent();
+    else if (e.key === '/') { e.preventDefault(); search.focus(); }
+  });
+
+  renderProgress();
+
+  if (location.hash) {
+    const target = document.getElementById(location.hash.slice(1));
+    if (target) requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
+  }
+})();
+</script>
+</body>
+</html>
